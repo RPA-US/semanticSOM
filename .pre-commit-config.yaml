@@ -1,0 +1,62 @@
+# pre-commit-config.yaml
+
+default_install_hook_types:
+- pre-commit
+- commit-msg
+
+repos:
+- repo: https://github.com/astral-sh/uv-pre-commit
+  # uv version.
+  rev: 0.5.11
+  hooks:
+    - id: uv-lock
+    - id: pip-compile
+      args: [pyproject.toml, -o, requirements.txt]
+    - id: uv-export
+      args:
+      - --format=requirements-txt
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: check-yaml
+  - id: sort-simple-yaml
+  - id: check-added-large-files
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.9.0
+  hooks:
+    - id: ruff
+      args:
+      - --fix
+      - --ignore=F841,E203,E501
+      - --extend-exclude=*.ipynb
+    - id: ruff-format
+
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.13.0
+  hooks:
+  - id: mypy
+    additional_dependencies: [
+      types-requests,
+    ]
+    args:
+    - --ignore-missing-imports
+    - --explicit-package-bases
+
+- repo: https://github.com/pycqa/bandit
+  rev: 1.8.0
+  hooks:
+  - id: bandit
+    args: [ "-ll" ]
+    files: .py$
+
+- repo: https://github.com/compilerla/conventional-pre-commit
+  rev: v3.6.0
+  hooks:
+  - id: conventional-pre-commit
+    stages: [ commit-msg ]
+    args: [ ]

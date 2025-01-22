@@ -1,0 +1,40 @@
+[project]
+name = "bpmextension"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = ["setuptools>=70.0.0", "pre-commit==4.0.1"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages]
+find = {}
+
+
+[project.scripts]
+dev-setup = "scripts.dev_setup:main"
+
+[tool.ruff]
+
+fix = true
+show-fixes = true
+
+include = ["pyproject.toml", "src/**/*.py", "src/**/*.ipynb", "scripts/**/*.py"]
+
+[tool.ruff.lint]
+
+ignore = ["F841", "E203", "E501"]
+
+[tool.ruff.format]
+
+docstring-code-format = true
+
+[tool.mypy]
+
+ignore_missing_imports = true
