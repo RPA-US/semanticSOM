@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "polars>=1.20.0",
+    "python-statemachine>=2.5.0",
+]
 
 [dependency-groups]
 dev = ["setuptools>=70.0.0", "pre-commit==4.0.1"]
