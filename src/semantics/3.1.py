@@ -63,7 +63,7 @@ class EventState(StateMachine):
         | context_menu.to(context_menu)
         | typing.to(context_menu)
     )
-    keypress: TransitionList = typing.to(typing) | interaction.to(typing)
+    keypress: TransitionList = interaction.to(typing)
     write: TransitionList = typing.to(typing) | interaction.to(typing)
 
     def on_enter_free(self) -> None:
@@ -73,9 +73,9 @@ class EventState(StateMachine):
         self.interaction_target = log_event["EventTarget"]
 
     def on_exit_typing(
-        self,
+        self, reset_target: bool = True
     ) -> None:  # The target is kept until we stop interacting with an object but not when exiting interaction as we might write on it
-        self.interaction_target = None
+        self.interaction_target = None if reset_target else self.interaction_target
 
     def on_enter_context_menu(self, log_event: dict) -> None:
         self.interaction_target = log_event["EventTarget"]
@@ -125,7 +125,7 @@ class Semantizer:
             return Action.PRESS
         match text:
             case "tab":
-                global_state.send("tab")
+                global_state.send("tab", reset_target=False)
                 return Action.TAB
             case "enter":
                 global_state.send("enter")
@@ -154,7 +154,10 @@ class Semantizer:
             case Action.SUBMIT:
                 return "Submitted information"
             case Action.TYPE:
-                return f"Typed {self.current_event['Text']} on {global_state.interaction_target}"
+                if global_state.interaction_target:
+                    return f"Typed {self.current_event['Text']} on {global_state.interaction_target}"
+                else:
+                    return f"Typed {self.current_event['Text']}"
             case _:
                 return "Invalid action type"
 
@@ -170,10 +173,11 @@ class Semantizer:
         return res
 
 
-global_state = EventState()
-semantizer = Semantizer()
-event_log: pl.DataFrame = pl.read_csv(
-    source="input/phase_3/brandon_toy_example.csv", separator=","
-)
-semantized_log: pl.DataFrame = semantizer.semantize_log(event_log=event_log)
-print(semantized_log)
+if __name__ == "__main__":
+    global_state = EventState()
+    semantizer = Semantizer()
+    event_log: pl.DataFrame = pl.read_csv(
+        source="input/phase_3/email.csv", separator=","
+    )
+    semantized_log: pl.DataFrame = semantizer.semantize_log(event_log=event_log)
+    semantized_log.write_csv("input/phase_3/email_semantized.csv")
