@@ -8,8 +8,8 @@ def main():
 
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-    if os.system("uv python find 3.12") != 0:
-        os.system("uv python install 3.12")
+    if os.system("uv python find 3.10") != 0:
+        os.system("uv python install 3.10")
 
     os.system("uv sync")
     os.system("uv tool install ruff")
