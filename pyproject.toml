@@ -18,6 +18,7 @@ dependencies = [
     "qwen-vl-utils>=0.0.10",
     "optimum>=1.23.3",
     "transformers>=4.48.1",
+    "sqlite-vec>=0.1.6",
 ]
 
 [dependency-groups]
