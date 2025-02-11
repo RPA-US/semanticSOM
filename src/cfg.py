@@ -4,6 +4,7 @@ import os
 class CFG:
     project_root: str = os.path.dirname(os.path.dirname(__file__))
     image_dir: str = f"{project_root}/images"
+    som_dir: str = f"{project_root}/soms"
 
     sqlite_db_location: str = f"{project_root}/cache.db"
 

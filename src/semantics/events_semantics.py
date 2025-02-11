@@ -180,4 +180,4 @@ if __name__ == "__main__":
         source="input/phase_3/email.csv", separator=","
     )
     semantized_log: pl.DataFrame = semantizer.semantize_log(event_log=event_log)
-    semantized_log.write_csv("input/phase_3/email_semantized.csv")
+    print(semantized_log)

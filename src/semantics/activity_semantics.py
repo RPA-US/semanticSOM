@@ -6,7 +6,7 @@ from src.semantics.prompts import FROM_RAW, FROM_STATEMACHINE
 
 
 def semantics_via_statemachine() -> None:
-    model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct")
+    model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
     event_log: pl.DataFrame = pl.read_csv(
         source="input/phase_3/email_semantized.csv", separator=","
     )
