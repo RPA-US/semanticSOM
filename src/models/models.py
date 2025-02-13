@@ -10,6 +10,7 @@ from qwen_vl_utils import process_vision_info
 from transformers import (
     AutoProcessor,
     Qwen2VLForConditionalGeneration,
+    # Qwen2_5_VLForConditionalGeneration,
     AutoModelForCausalLM,
 )
 
@@ -208,9 +209,21 @@ class Qwen2Model(ModelInterface):
         processor = AutoProcessor.from_pretrained(self.model_name)
         return model, processor
 
+    def __call__(
+        self, prompt, stop=None, callbacks=None, *, tags=None, metadata=None, **kwargs
+    ) -> str:
+        return super().__call__(
+            prompt=prompt,
+            stop=stop,
+            callbacks=callbacks,
+            tags=tags,
+            metadata=metadata,
+            **kwargs,
+        )
+
 
 class QwenVLModel(Qwen2Model):
-    capabilities: List[str] = ["text"]
+    capabilities: List[str] = ["image", "text"]
 
     def __init__(
         self,
@@ -334,8 +347,20 @@ class QwenVLModel(Qwen2Model):
         return model, processor
 
 
+# class QwenVL2_5Model(QwenVLModel):
+#     def load_model(self) -> Tuple[Qwen2_5_VLForConditionalGeneration, AutoProcessor]:
+#         """
+#         Loads and returns the model to make inferences on
+#         """
+#         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+#             self.model_name, torch_dtype="auto", device_map="auto"
+#         )
+#         processor = AutoProcessor.from_pretrained(self.model_name)
+#         return model, processor
+
+
 if __name__ == "__main__":
-    model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct")
+    model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
     sys_prompt = "You will receive a structured event log with the following columns:"
     user_prompt = "1. **ScreenID**: Identifies the group of events corresponding to a specific screen or workflow step."
     print(model._call(user_prompt, sys_prompt=sys_prompt))

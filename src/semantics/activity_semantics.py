@@ -18,7 +18,7 @@ def semantics_via_statemachine() -> None:
         tbl_rows=-1,
     ):
         str_repr: str = event_log.__str__()
-    enriched_log = model._call(str_repr, sys_prompt=FROM_STATEMACHINE)
+    enriched_log = model(str_repr, sys_prompt=FROM_STATEMACHINE)
     print(enriched_log)
 
 
@@ -35,7 +35,7 @@ def full_llm() -> None:
         tbl_rows=-1,
     ):
         str_repr: str = event_log.__str__()
-    enriched_log = model._call(str_repr, sys_prompt=FROM_RAW)
+    enriched_log = model(str_repr, sys_prompt=FROM_RAW)
     print(enriched_log)
 
 

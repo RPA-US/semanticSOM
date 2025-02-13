@@ -131,7 +131,7 @@ Before you output the enriched log, you must first ask yourself the following qu
 2. Maintain clarity and ensure the output is suitable for further analysis or modeling.
 """
 
-COT_EVENT_TARGET = """
+COT_ACTION_TARGET_BASE = """
 You are an expert at indentifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise and descriptive name for the GUI element marked by a red rectangle.
 
 In general, try to name the element based on its function or purpose, keeping the name short and descriptive. The name should be clear and easily understood by someone who is not familiar with the interface.
@@ -142,7 +142,7 @@ Before giving out the final answer. You are required to respond to the following
 
 Reasoning over the screen content. Answer the following questions:
 1. In a few words, what is being shown on the screen?
-2. What is the element marked by the red rectangle used for?
+2. What is the element marked by the given indicator?
 3. Is there any text descriptions of what the element does?
 4. Are there any descriptions of nearby elements that could help identify the element?
 
@@ -151,53 +151,82 @@ Reasoning over the screen content. Answer the following questions:
 Follow these guidelines:
 1. Examine the provided screenshot to assess the current state of the desktop environment.
 2. Ensure that the name you provide is concise, descriptive, and relevant to the element's function.
-3. Format the thought process with the special tokens `<|reasoning_begin|>` and `<|reasoning_end|>`.
-4. Format the name of the GUI element with the special tokens `<|target_element|>` and `<|end_target_element|>`.
+3. Format the thought process with the special tokens <|reasoning_begin|> and <|reasoning_end|>.
+4. Format the name of the GUI element with the special tokens <|target_element|> and <|end_target_element|>.
 
-### Examples:
-
-#### Example 1:
-##### Input:
-**Screenshot:** *[Image of a desktop]*
-
-##### Reasoning:
+### Example Output:
 <|reasoning_begin|>
-1. The screenshot shows a desktop with a button highlighted by a red rectangle.
-2. The button appears to be a user profile settings button.
-3. There is no text description of the button's function.
-4. Nearby elements include a search bar and a navigation menu.
+1. The screenshot shows ...
+2. The element marked by the given indicator is ...
+3. The element ...
+4. The nearby elements ...
+5. <free reasoning section>
 <|reasoning_end|>
 
-##### Output:
-<|target_element|>User Profile Settings<|end_target_element|>
+<|target_element|><identified element><|end_target_element|>
+"""
 
-#### Example 2:
-##### Input:
-**Screenshot:** *[Image of a desktop]*
+COT_ACTION_TARGET_ELEM = """
+You are an expert at indentifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise and descriptive name for the GUI element marked by a red rectangle.
 
-##### Reasoning:
+In general, try to name the element based on its function or purpose, keeping the name short and descriptive. The name should be clear and easily understood by someone who is not familiar with the interface.
+
+### Reasoning process
+
+Before giving out the final answer. You are required to respond to the following questions in order:
+
+Reasoning over the screen content. Answer the following questions:
+1. What is the element being shown?
+2. Is there any text descriptions of what the element does?
+
+### Guidelines
+
+Follow these guidelines:
+1. Ensure that the name you provide is concise, descriptive, and relevant to the element's function.
+2. Format the thought process with the special tokens <|reasoning_begin|> and <|reasoning_end|>.
+3. Format the name of the GUI element with the special tokens <|target_element|> and <|end_target_element|>.
+
+### Example Output:
 <|reasoning_begin|>
-1. The screenshot shows a desktop with a search bar highlighted by a red rectangle.
-2. The search bar is used for entering search queries.
-3. There is no text description of the search bar.
-4. Nearby elements include a logo and a navigation menu.
+1. The element is ...
+2. The element ...
+3. <free reasoning section>
 <|reasoning_end|>
 
-##### Output:
-<|target_element|>Search Bar<|end_target_element|>
+<|target_element|><identified element><|end_target_element|>
+"""
 
-#### Example 3:
-##### Input:
-**Screenshot:** *[Image of a form]*
+COT_ACTION_TARGET_COORDS = """
+You are an expert at indentifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise and descriptive name for the GUI element marked by a red rectangle.
 
-##### Reasoning:
+In general, try to name the element based on its function or purpose, keeping the name short and descriptive. The name should be clear and easily understood by someone who is not familiar with the interface.
+
+### Reasoning process
+
+Before giving out the final answer. You are required to respond to the following questions in order:
+
+Reasoning over the screen content. Answer the following questions:
+1. In a few words, what is being shown on the screen?
+2. What is the element at the given coordinates?
+3. Is there any text descriptions of what the element does?
+4. Are there any descriptions of nearby elements that could help identify the element?
+
+### Guidelines
+
+Follow these guidelines:
+1. Examine the provided screenshot to assess the current state of the desktop environment.
+2. Ensure that the name you provide is concise, descriptive, and relevant to the element's function.
+3. Format the thought process with the special tokens <|reasoning_begin|> and <|reasoning_end|>.
+4. Format the name of the GUI element with the special tokens <|target_element|> and <|end_target_element|>.
+
+### Example Output:
 <|reasoning_begin|>
-1. The screenshot shows a form with a text input field highlighted by a red rectangle.
-2. The marked element appears to be a text input field.
-3. Above the field, there is a label indicating "Username."
-4. Nearby elements include a password field and a submit button.
+1. The screenshot shows ...
+2. The element at the given coordinates is ...
+3. The element ...
+4. The nearby elements ...
+5. <free reasoning section>
 <|reasoning_end|>
 
-##### Output:
-<|target_element|>Username Input Field<|end_target_element|>
+<|target_element|><identified element><|end_target_element|>
 """
