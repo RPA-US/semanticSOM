@@ -12,3 +12,4 @@ wheels/
 # Experiment files
 input/
 output/
+cache.db
