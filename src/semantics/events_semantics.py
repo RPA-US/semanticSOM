@@ -16,7 +16,11 @@ from statemachine.transition_list import TransitionList
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
-class Action(Enum):  # serves both as an action type and as a state type
+class Action(Enum):
+    """
+    Enum representing different types of actions.
+    """
+
     RIGHT_CLICK = 1
     LEFT_CLICK = 2
     TYPE = 3
@@ -28,7 +32,7 @@ class Action(Enum):  # serves both as an action type and as a state type
 
 class EventState(StateMachine):
     """
-    This needs to be better formaly defined. We need to define the states and the transitions between them
+    State machine for handling event states and transitions.
     """
 
     # Define the stuff we will need to store in the state
@@ -67,9 +71,18 @@ class EventState(StateMachine):
     write: TransitionList = typing.to(typing) | interaction.to(typing)
 
     def on_enter_free(self) -> None:
+        """
+        Handle entering the 'free' state.
+        """
         self.interaction_target = None
 
     def on_enter_interaction(self, log_event: dict) -> None:
+        """
+        Handle entering the 'interaction' state.
+
+        Args:
+            log_event (dict): The log event triggering the state change.
+        """
         self.interaction_target = log_event["EventTarget"]
 
     def on_exit_typing(
@@ -78,17 +91,33 @@ class EventState(StateMachine):
         self.interaction_target = None if reset_target else self.interaction_target
 
     def on_enter_context_menu(self, log_event: dict) -> None:
+        """
+        Handle entering the 'context_menu' state.
+
+        Args:
+            log_event (dict): The log event triggering the state change.
+        """
         self.interaction_target = log_event["EventTarget"]
 
     def on_exit_context_menu(self) -> None:
+        """
+        Handle exiting the 'context_menu' state.
+        """
         self.interaction_target = None
 
     def on_enter_submit(self) -> None:
+        """
+        Handle entering the 'submit' state.
+        """
         self.interaction_target = None
         self.send("free")
 
 
 class Semantizer:
+    """
+    Class for semantizing event logs.
+    """
+
     current_event: dict[str, Any]
     current_action: Action | None
 
@@ -97,6 +126,12 @@ class Semantizer:
         self.current_action = None
 
     def calc_event(self, event: dict) -> None:
+        """
+        Calculate the current event and update the state machine.
+
+        Args:
+            event (dict): The event to process.
+        """
         self.current_event = event
         match event["EventType"]:
             case "right_click":
@@ -162,6 +197,15 @@ class Semantizer:
                 return "Invalid action type"
 
     def semantize_log(self, event_log: pl.DataFrame) -> pl.DataFrame:
+        """
+        Semantizes the event log.
+
+        Args:
+            event_log (pl.DataFrame): The event log to process.
+
+        Returns:
+            pl.DataFrame: The semantized event log.
+        """
         event_desc_col: list[str] = []
         for event in event_log.iter_rows(named=True):  # event: dict[str, Any]
             self.next(event)

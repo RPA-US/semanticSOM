@@ -20,6 +20,10 @@ from transformers import (
 
 
 class ModelInterface(LLM, ABC):
+    """
+    Abstract base class for model interfaces.
+    """
+
     model_name: Optional[str] = None
     capabilities: List[str] = []
     skip_special_tokens: bool = False
@@ -53,10 +57,11 @@ class ModelInterface(LLM, ABC):
         stop: Optional[list[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> str:  # ignore
-        """Run the LLM on the given input.
+    ) -> str:
+        """
+        Run the LLM on the given input.
 
-        Performs an inference using qwen-vl based models
+        Performs an inference using qwen-vl based models.
 
         Args:
             prompt: The prompt to generate from.
@@ -68,19 +73,26 @@ class ModelInterface(LLM, ABC):
                 to the model provider API call.
 
         Returns:
-            The model output as a string. SHOULD NOT include the prompt.
+            str: The model output as a string. SHOULD NOT include the prompt.
         """
+        pass
 
     @abstractmethod
     def load_model(self) -> Tuple[Any, ...]:
         """
-        Loads and returns the model to make inferences on
+        Loads and returns the model to make inferences on.
+
+        Returns:
+            Tuple[Any, ...]: The loaded model and any additional components.
         """
         pass
 
     def unload(self, *args: Any) -> None:
         """
-        Unloads the given items and extras from cuda memory
+        Unloads the given items and extras from cuda memory.
+
+        Args:
+            *args (Any): The items to unload.
         """
         try:
             for arg in args:
@@ -97,6 +109,10 @@ class ModelInterface(LLM, ABC):
 
 
 class Qwen2Model(ModelInterface):
+    """
+    Implementation of the Qwen2 model interface.
+    """
+
     capabilities: List[str] = ["text"]
 
     def __init__(
@@ -118,6 +134,15 @@ class Qwen2Model(ModelInterface):
         max_tokens: int = 512,
         **kwargs: Any,
     ) -> None:
+        """
+        Performs an inference using the Qwen2 model.
+
+        Args:
+            sys_prompt (str): The system prompt.
+            user_prompt (str): The user prompt.
+            max_tokens (int): The maximum number of tokens to generate.
+            **kwargs (Any): Additional keyword arguments.
+        """
         model, processor = self.load_model()
 
         messages: List[Dict[str, Any]] = []
@@ -175,11 +200,20 @@ class Qwen2Model(ModelInterface):
         **kwargs: Any,
     ) -> str:
         """
-        Performs an inference using qwen-vl based models
+        Performs an inference using qwen-vl based models.
 
         Allowed kwargs:
         - sys_prompt: System prompt
         - max_tokens: Maximum tokens to generate
+
+        Args:
+            prompt (str): The prompt to generate from.
+            stop (Optional[List[str]]): Stop words to use when generating.
+            run_manager (Optional[CallbackManagerForLLMRun]): Callback manager for the run.
+            **kwargs (Any): Additional keyword arguments.
+
+        Returns:
+            str: The model output as a string.
         """
         # This is strictly necessary to ensure ALL memory held by torch is released when the inference is done
         # Running the inference without this results in many dangling tensors for some reason
@@ -201,7 +235,10 @@ class Qwen2Model(ModelInterface):
 
     def load_model(self) -> Tuple[Any, AutoProcessor]:
         """
-        Loads and returns the model to make inferences on
+        Loads and returns the model to make inferences on.
+
+        Returns:
+            Tuple[Any, AutoProcessor]: The loaded model and processor.
         """
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype="auto", device_map="auto"
@@ -212,6 +249,20 @@ class Qwen2Model(ModelInterface):
     def __call__(
         self, prompt, stop=None, callbacks=None, *, tags=None, metadata=None, **kwargs
     ) -> str:
+        """
+        Calls the model with the given prompt and additional arguments.
+
+        Args:
+            prompt (str): The prompt to generate from.
+            stop (Optional[List[str]]): Stop words to use when generating.
+            callbacks (Optional[Any]): Callbacks for the run.
+            tags (Optional[Any]): Tags for the run.
+            metadata (Optional[Any]): Metadata for the run.
+            **kwargs (Any): Additional keyword arguments.
+
+        Returns:
+            str: The model output as a string.
+        """
         return super().__call__(
             prompt=prompt,
             stop=stop,
@@ -223,6 +274,10 @@ class Qwen2Model(ModelInterface):
 
 
 class QwenVLModel(Qwen2Model):
+    """
+    Implementation of the QwenVL model interface.
+    """
+
     capabilities: List[str] = ["image", "text"]
 
     def __init__(
@@ -240,6 +295,15 @@ class QwenVLModel(Qwen2Model):
         max_tokens: int = 512,
         **kwargs: Any,
     ) -> None:
+        """
+        Performs an inference using the QwenVL model.
+
+        Args:
+            sys_prompt (str): The system prompt.
+            user_prompt (str): The user prompt.
+            max_tokens (int): The maximum number of tokens to generate.
+            **kwargs (Any): Additional keyword arguments.
+        """
         model, processor = self.load_model()
 
         messages: List[Dict[str, Any]] = []
@@ -310,13 +374,22 @@ class QwenVLModel(Qwen2Model):
         **kwargs: Any,
     ) -> str:
         """
-        Performs an inference using qwen-vl based models
+        Performs an inference using qwen-vl based models.
 
         Allowed kwargs:
         - sys_prompt: System prompt
         - max_tokens: Maximum tokens to generate
         - image: List of image paths
         - text: List of text prompts
+
+        Args:
+            prompt (str): The prompt to generate from.
+            stop (Optional[List[str]]): Stop words to use when generating.
+            run_manager (Optional[CallbackManagerForLLMRun]): Callback manager for the run.
+            **kwargs (Any): Additional keyword arguments.
+
+        Returns:
+            str: The model output as a string.
         """
         # This is strictly necessary to ensure ALL memory held by torch is released when the inference is done
         # Running the inference without this results in many dangling tensors for some reason
@@ -338,7 +411,10 @@ class QwenVLModel(Qwen2Model):
 
     def load_model(self) -> Tuple[Qwen2VLForConditionalGeneration, AutoProcessor]:
         """
-        Loads and returns the model to make inferences on
+        Loads and returns the model to make inferences on.
+
+        Returns:
+            Tuple[Qwen2VLForConditionalGeneration, AutoProcessor]: The loaded model and processor.
         """
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             self.model_name, torch_dtype="auto", device_map="auto"
@@ -350,7 +426,7 @@ class QwenVLModel(Qwen2Model):
 # class QwenVL2_5Model(QwenVLModel):
 #     def load_model(self) -> Tuple[Qwen2_5_VLForConditionalGeneration, AutoProcessor]:
 #         """
-#         Loads and returns the model to make inferences on
+#         Loads and returns the model to make inferences on.
 #         """
 #         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
 #             self.model_name, torch_dtype="auto", device_map="auto"

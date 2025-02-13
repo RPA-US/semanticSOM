@@ -6,6 +6,9 @@ from src.semantics.prompts import FROM_RAW, FROM_STATEMACHINE
 
 
 def semantics_via_statemachine() -> None:
+    """
+    Enriches the event log using a state machine and a language model.
+    """
     model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
     event_log: pl.DataFrame = pl.read_csv(
         source="input/phase_3/email_semantized.csv", separator=","
@@ -23,6 +26,9 @@ def semantics_via_statemachine() -> None:
 
 
 def full_llm() -> None:
+    """
+    Enriches the event log using a full language model.
+    """
     model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct")
     event_log: pl.DataFrame = pl.read_csv(
         source="input/phase_3/brandon_toy_example.csv", separator=","
@@ -40,6 +46,9 @@ def full_llm() -> None:
 
 
 def main() -> None:
+    """
+    Main function to run the semantics enrichment.
+    """
     semantics_via_statemachine()
 
 

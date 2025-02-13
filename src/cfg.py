@@ -2,6 +2,10 @@ import os
 
 
 class CFG:
+    """
+    Configuration class for the project.
+    """
+
     project_root: str = os.path.dirname(os.path.dirname(__file__))
     image_dir: str = f"{project_root}/input/images"
     som_dir: str = f"{project_root}/input/soms"

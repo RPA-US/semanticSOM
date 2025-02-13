@@ -20,9 +20,12 @@ class Coords(NamedTuple):
 
 def hash_image(image: Image.Image) -> None:
     """
-    Computes the hash of the image and returns it as a vector to allow for image similarity search
+    Computes the hash of the image and returns it as a vector to allow for image similarity search.
 
-    Uses whash to compute the hash of the image
+    Uses whash to compute the hash of the image.
+
+    Args:
+        image (Image.Image): The image to hash.
     """
     pass
 
@@ -32,7 +35,13 @@ def identify_target_object(image: Image.Image, som: dict, coords: Coords) -> dic
     Identifies the target object in the image based on the provided SOM and coordinates.
     What we look for is the smallest component that contains the point.
 
-    Returns the identified target object
+    Args:
+        image (Image.Image): The image containing the target object.
+        som (dict): The structure of the image.
+        coords (Coords): The coordinates of the target point.
+
+    Returns:
+        dict: The identified target object.
     """
     target_object: dict = dict()
 
@@ -65,7 +74,13 @@ def identify_target_object(image: Image.Image, som: dict, coords: Coords) -> dic
 
 def bbox_from_object(obj: dict) -> tuple[int, int, int, int]:
     """
-    Extract the upper leftmost, lower rightmost coordinates of the object from its list of points
+    Extract the upper leftmost, lower rightmost coordinates of the object from its list of points.
+
+    Args:
+        obj (dict): The object to extract the bounding box from.
+
+    Returns:
+        tuple[int, int, int, int]: The bounding box coordinates (x_min, y_min, x_max, y_max).
     """
     x_coords = [point[0] for point in obj["points"]]
     y_coords = [point[1] for point in obj["points"]]
@@ -85,7 +100,13 @@ def process_image_for_prompt(
     - Use of a cropped image (parent of target object)
     - Use of a cropped image (target object)
 
-    Returns the constructed prompt for the LLM to consume and the processed image
+    Args:
+        image (Image.Image): The image to process.
+        som (dict): The structure of the image.
+        coords (Coords): The coordinates of the target point.
+
+    Returns:
+        tuple[Image.Image, str, str]: The processed image, system prompt, and user prompt.
     """
     target_object: dict = identify_target_object(image=image, som=som, coords=coords)
     sys_prompt: str = COT_ACTION_TARGET_BASE
@@ -139,9 +160,14 @@ def process_image_for_prompt(
 
 def highlight_compo(image: Image.Image, compo: dict) -> Image.Image:
     """
-    Highlights the component in the image
+    Highlights the component in the image.
 
-    Returns the image with the component highlighted
+    Args:
+        image (Image.Image): The image containing the component.
+        compo (dict): The component to highlight.
+
+    Returns:
+        Image.Image: The image with the component highlighted.
     """
     cv_img = cv2.cvtColor(src=np.array(object=image), code=cv2.COLOR_RGB2BGR)
     cv2.polylines(
@@ -156,8 +182,13 @@ def highlight_compo(image: Image.Image, compo: dict) -> Image.Image:
 
 def add_som(image: Image.Image, som: dict) -> Image.Image:
     """
-    Adds marks to the image per component
+    Adds marks to the image per component.
 
-    Returns the image with the SOM added
+    Args:
+        image (Image.Image): The image to add the SOM to.
+        som (dict): The structure of the image.
+
+    Returns:
+        Image.Image: The image with the SOM added.
     """
     return image

@@ -8,8 +8,9 @@ def build_tree(tree: list, depth=1, text_class="Text"):
     Recursively constructs a tree hierarchy from a list of compos.
 
     Args:
-        tree (list): A list of compos
+        tree (list): A list of compos.
         depth (int): The current depth of the tree.
+        text_class (str): The class name for text components.
 
     Returns:
         list: A tree representing the hierarchy of the compos.
@@ -43,13 +44,14 @@ def build_tree(tree: list, depth=1, text_class="Text"):
 
 def ensure_toplevel(tree: dict, bring_up=None):
     """
-    Ensures that the TopLevel labels are in the top level of the tree
+    Ensures that the TopLevel labels are in the top level of the tree.
 
     Args:
-        tree (list): A tree representing the hierarchy of the compos.
+        tree (dict): A tree representing the hierarchy of the compos.
+        bring_up (list): A list of components to bring up to the top level.
 
     Returns:
-        tree: A tree representing the hierarchy of the compos.
+        tuple: A tuple containing the new children and the bring_up list.
     """
     if bring_up is None:
         bring_up = []
@@ -75,6 +77,16 @@ def ensure_toplevel(tree: dict, bring_up=None):
 
 
 def readjust_depth(nodes, depth):
+    """
+    Readjusts the depth of the nodes in the tree.
+
+    Args:
+        nodes (list): A list of nodes.
+        depth (int): The new depth.
+
+    Returns:
+        list: The nodes with adjusted depth.
+    """
     for node in nodes:
         # Remove xpath elements no longer needed
         node["xpath"] = node["xpath"][node["depth"] - depth :]
@@ -90,7 +102,7 @@ def labels_to_soms(labels: dict):
     Converts a list of labeled jsons into a list of SOMs.
 
     Args:
-        dataset_labels (list): A list of labeled jsons.
+        labels (dict): A dictionary containing labeled jsons.
 
     Returns:
         dict: Pairs of image name and SOM.
