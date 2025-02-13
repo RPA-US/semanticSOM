@@ -132,27 +132,32 @@ Before you output the enriched log, you must first ask yourself the following qu
 """
 
 COT_ACTION_TARGET_BASE = """
-You are an expert at indentifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise and descriptive name for the GUI element marked by a red rectangle.
+You are an expert at identifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise, descriptive, and contextually enriched name for the GUI element marked by a red rectangle. When naming the element, incorporate both its function or purpose and its type (e.g., button, link, field), including any relevant contextual information from the surrounding interface.
 
-In general, try to name the element based on its function or purpose, keeping the name short and descriptive. The name should be clear and easily understood by someone who is not familiar with the interface.
+In general, name the element based on its intended use and control type, ensuring the label is clear, brief, and easily understood by someone who is not familiar with the interface.
 
 ### Reasoning process
 
-Before giving out the final answer. You are required to respond to the following questions in order:
-
-Reasoning over the screen content. Answer the following questions:
-1. In a few words, what is being shown on the screen?
+Before providing your final answer, answer the following questions in order:
+1. In a few words, what is displayed on the screen?
 2. What is the element marked by the given indicator?
-3. Is there any text descriptions of what the element does?
-4. Are there any descriptions of nearby elements that could help identify the element?
+3. Does the element have any textual labels or descriptions that indicate its function?
+4. Are there any contextual clues from nearby elements that help clarify the element's purpose or type?
 
 ### Guidelines
 
 Follow these guidelines:
-1. Examine the provided screenshot to assess the current state of the desktop environment.
-2. Ensure that the name you provide is concise, descriptive, and relevant to the element's function.
-3. Format the thought process with the special tokens <|reasoning_begin|> and <|reasoning_end|>.
-4. Format the name of the GUI element with the special tokens <|target_element|> and <|end_target_element|>.
+1. Examine the provided screenshot carefully to understand the overall interface context.
+2. Ensure that the final name you provide is concise, descriptive, and incorporates both the element's function and its control type.
+3. Format your thought process using the special tokens `<|reasoning_begin|>` and `<|reasoning_end|>`.
+4. Format the final name of the GUI element using the special tokens `<|target_element|>` and `<|end_target_element|>`.
+
+### Example Target Element Names:
+- <|target_element|>Search input field<|end_target_element|>
+- <|target_element|>Submit form button<|end_target_element|>
+- <|target_element|>User profile link<|end_target_element|>
+- <|target_element|>Settings toggle switch<|end_target_element|>
+- <|target_element|>Notification dropdown menu<|end_target_element|>
 
 ### Example Output:
 <|reasoning_begin|>
@@ -167,9 +172,9 @@ Follow these guidelines:
 """
 
 COT_ACTION_TARGET_ELEM = """
-You are an expert at indentifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise and descriptive name for the GUI element marked by a red rectangle.
+You are an expert at identifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise, descriptive, and contextually enriched name for the GUI element marked by a red rectangle. When naming the element, incorporate both its function or purpose and its type (e.g., button, link, field), including any relevant contextual information from the surrounding interface.
 
-In general, try to name the element based on its function or purpose, keeping the name short and descriptive. The name should be clear and easily understood by someone who is not familiar with the interface.
+In general, name the element based on its intended use and control type, ensuring the label is clear, brief, and easily understood by someone who is not familiar with the interface.
 
 ### Reasoning process
 
@@ -182,9 +187,17 @@ Reasoning over the screen content. Answer the following questions:
 ### Guidelines
 
 Follow these guidelines:
-1. Ensure that the name you provide is concise, descriptive, and relevant to the element's function.
-2. Format the thought process with the special tokens <|reasoning_begin|> and <|reasoning_end|>.
-3. Format the name of the GUI element with the special tokens <|target_element|> and <|end_target_element|>.
+1. Examine the provided screenshot carefully to understand the overall interface context.
+2. Ensure that the final name you provide is concise, descriptive, and incorporates both the element's function and its control type if possible.
+3. Format your thought process using the special tokens `<|reasoning_begin|>` and `<|reasoning_end|>`.
+4. Format the final name of the GUI element using the special tokens `<|target_element|>` and `<|end_target_element|>`.
+
+### Example Target Element Names:
+- <|target_element|>Search input field<|end_target_element|>
+- <|target_element|>Submit form button<|end_target_element|>
+- <|target_element|>User profile link<|end_target_element|>
+- <|target_element|>Settings toggle switch<|end_target_element|>
+- <|target_element|>Notification dropdown menu<|end_target_element|>
 
 ### Example Output:
 <|reasoning_begin|>
@@ -197,9 +210,9 @@ Follow these guidelines:
 """
 
 COT_ACTION_TARGET_COORDS = """
-You are an expert at indentifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise and descriptive name for the GUI element marked by a red rectangle.
+You are an expert at identifying and naming GUI elements given a screenshot. Your task is to analyze the provided screenshot and provide a concise, descriptive, and contextually enriched name for the GUI element marked by a red rectangle. When naming the element, incorporate both its function or purpose and its type (e.g., button, link, field), including any relevant contextual information from the surrounding interface.
 
-In general, try to name the element based on its function or purpose, keeping the name short and descriptive. The name should be clear and easily understood by someone who is not familiar with the interface.
+In general, name the element based on its intended use and control type, ensuring the label is clear, brief, and easily understood by someone who is not familiar with the interface.
 
 ### Reasoning process
 
@@ -214,10 +227,17 @@ Reasoning over the screen content. Answer the following questions:
 ### Guidelines
 
 Follow these guidelines:
-1. Examine the provided screenshot to assess the current state of the desktop environment.
-2. Ensure that the name you provide is concise, descriptive, and relevant to the element's function.
-3. Format the thought process with the special tokens <|reasoning_begin|> and <|reasoning_end|>.
-4. Format the name of the GUI element with the special tokens <|target_element|> and <|end_target_element|>.
+1. Examine the provided screenshot carefully to understand the overall interface context.
+2. Ensure that the final name you provide is concise, descriptive, and incorporates both the element's function and its control type.
+3. Format your thought process using the special tokens `<|reasoning_begin|>` and `<|reasoning_end|>`.
+4. Format the final name of the GUI element using the special tokens `<|target_element|>` and `<|end_target_element|>`.
+
+### Example Target Element Names:
+- <|target_element|>Search input field<|end_target_element|>
+- <|target_element|>Submit form button<|end_target_element|>
+- <|target_element|>User profile link<|end_target_element|>
+- <|target_element|>Settings toggle switch<|end_target_element|>
+- <|target_element|>Notification dropdown menu<|end_target_element|>
 
 ### Example Output:
 <|reasoning_begin|>
