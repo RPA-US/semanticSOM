@@ -153,8 +153,8 @@ Follow these guidelines:
 4. Format the final name of the GUI element using the special tokens `<|target_element|>` and `<|end_target_element|>`.
 
 ### Example Target Element Names:
-- <|target_element|>Search input field<|end_target_element|>
-- <|target_element|>Submit form button<|end_target_element|>
+- <|target_element|>Product search input field<|end_target_element|>
+- <|target_element|>Submit login form button<|end_target_element|>
 - <|target_element|>User profile link<|end_target_element|>
 - <|target_element|>Settings toggle switch<|end_target_element|>
 - <|target_element|>Notification dropdown menu<|end_target_element|>
@@ -193,8 +193,8 @@ Follow these guidelines:
 4. Format the final name of the GUI element using the special tokens `<|target_element|>` and `<|end_target_element|>`.
 
 ### Example Target Element Names:
-- <|target_element|>Search input field<|end_target_element|>
-- <|target_element|>Submit form button<|end_target_element|>
+- <|target_element|>Product search input field<|end_target_element|>
+- <|target_element|>Submit login form button<|end_target_element|>
 - <|target_element|>User profile link<|end_target_element|>
 - <|target_element|>Settings toggle switch<|end_target_element|>
 - <|target_element|>Notification dropdown menu<|end_target_element|>
@@ -233,8 +233,8 @@ Follow these guidelines:
 4. Format the final name of the GUI element using the special tokens `<|target_element|>` and `<|end_target_element|>`.
 
 ### Example Target Element Names:
-- <|target_element|>Search input field<|end_target_element|>
-- <|target_element|>Submit form button<|end_target_element|>
+- <|target_element|>Product search input field<|end_target_element|>
+- <|target_element|>Submit login form button<|end_target_element|>
 - <|target_element|>User profile link<|end_target_element|>
 - <|target_element|>Settings toggle switch<|end_target_element|>
 - <|target_element|>Notification dropdown menu<|end_target_element|>

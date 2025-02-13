@@ -102,6 +102,32 @@ class ModelInterface(LLM, ABC):
         except Exception:
             pass
 
+    def __call__(
+        self, prompt, stop=None, callbacks=None, *, tags=None, metadata=None, **kwargs
+    ) -> str:
+        """
+        Calls the model with the given prompt and additional arguments.
+
+        Args:
+            prompt (str): The prompt to generate from.
+            stop (Optional[List[str]]): Stop words to use when generating.
+            callbacks (Optional[Any]): Callbacks for the run.
+            tags (Optional[Any]): Tags for the run.
+            metadata (Optional[Any]): Metadata for the run.
+            **kwargs (Any): Additional keyword arguments.
+
+        Returns:
+            str: The model output as a string.
+        """
+        return self._call(
+            prompt=prompt,
+            stop=stop,
+            callbacks=callbacks,
+            tags=tags,
+            metadata=metadata,
+            **kwargs,
+        )
+
 
 #######
 # IMPLEMENTATION
@@ -245,32 +271,6 @@ class Qwen2Model(ModelInterface):
         )
         processor = AutoProcessor.from_pretrained(self.model_name)
         return model, processor
-
-    def __call__(
-        self, prompt, stop=None, callbacks=None, *, tags=None, metadata=None, **kwargs
-    ) -> str:
-        """
-        Calls the model with the given prompt and additional arguments.
-
-        Args:
-            prompt (str): The prompt to generate from.
-            stop (Optional[List[str]]): Stop words to use when generating.
-            callbacks (Optional[Any]): Callbacks for the run.
-            tags (Optional[Any]): Tags for the run.
-            metadata (Optional[Any]): Metadata for the run.
-            **kwargs (Any): Additional keyword arguments.
-
-        Returns:
-            str: The model output as a string.
-        """
-        return super().__call__(
-            prompt=prompt,
-            stop=stop,
-            callbacks=callbacks,
-            tags=tags,
-            metadata=metadata,
-            **kwargs,
-        )
 
 
 class QwenVLModel(Qwen2Model):

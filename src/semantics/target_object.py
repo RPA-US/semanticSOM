@@ -1,3 +1,4 @@
+import re
 import json
 import sqlite3
 from typing import Any
@@ -8,7 +9,7 @@ from PIL import Image
 
 from src.cfg import CFG
 from src.models.models import QwenVLModel
-from src.semantics.utils import Coords, process_image_for_prompt
+from src.utils.prompt_processing import Coords, process_image_for_prompt
 
 
 class Cache:
@@ -82,9 +83,13 @@ def identify_target_element(
         image=screenshot, som=som, coords=coords
     )
 
-    model_output = model(prompt=prompt, sys_prompt=sys_prompt, image=image)
+    model_output: str = model(prompt=prompt, sys_prompt=sys_prompt, image=image)
 
-    return ""
+    if match_group := re.search(
+        pattern=r"<\|target_element\|>(.*)<\|end_target_element\|>", string=model_output
+    ):
+        return match_group.group(1)
+    raise ValueError("No target element found in the model output.")
 
 
 def semantize_targets(
@@ -139,6 +144,8 @@ def semantize_targets(
         cache.update_cache(
             img=screenshot, coords=coords, target_element=event_target_col[-1]
         )
+
+    event_log = event_log.with_columns(EventTarget=pl.Series(values=event_target_col))
 
     return event_log
 
