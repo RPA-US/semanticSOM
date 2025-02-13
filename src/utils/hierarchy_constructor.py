@@ -122,6 +122,7 @@ def labels_to_soms(labels: dict):
         for point in compo["points"]:
             point[0] = max(0, point[0])
             point[1] = max(0, point[1])
+        compo["centroid"] = list(Polygon(compo["points"]).centroid.coords[0])
 
     compos.sort(key=lambda x: Polygon(x["points"]).area, reverse=True)
 

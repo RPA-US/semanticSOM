@@ -11,6 +11,7 @@ from src.semantics.prompts import (
     COT_ACTION_TARGET_COORDS,
     COT_ACTION_TARGET_ELEM,
 )
+from src.utils.set_of_marks import add_num_marks
 
 
 class Coords(NamedTuple):
@@ -119,7 +120,10 @@ def process_image_for_prompt(
         prompt = "Identify the object highlighted in the image."
     if "som" in CFG.prompt_config["technique"]:
         # Add the SOM to the image
-        image = add_som(image=image, som=som)
+        image = add_num_marks(
+            image=image,
+            compos=list(filter(lambda comp: comp["class"] != "Text", som["compos"])),
+        )
         prompt = (
             f"Identify the element marked in the image with the number {target_object['id']}"
             if not prompt
@@ -178,17 +182,3 @@ def highlight_compo(image: Image.Image, compo: dict) -> Image.Image:
         thickness=3,
     )
     return Image.fromarray(obj=cv2.cvtColor(src=cv_img, code=cv2.COLOR_BGR2RGB))
-
-
-def add_som(image: Image.Image, som: dict) -> Image.Image:
-    """
-    Adds marks to the image per component.
-
-    Args:
-        image (Image.Image): The image to add the SOM to.
-        som (dict): The structure of the image.
-
-    Returns:
-        Image.Image: The image with the SOM added.
-    """
-    return image
