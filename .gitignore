@@ -13,3 +13,4 @@ wheels/
 input/
 output/
 cache.db
+.coverage
