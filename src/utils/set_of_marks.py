@@ -57,42 +57,87 @@ _COLORS = np.array(
 _COLORS = _COLORS.astype(np.float16).reshape(-1, 3)
 # fmt: on
 
+# Constants
+_COLOR_MAX_VALUES = (1, 255)
 
-def random_color(rgb=False, maximum=255):
+
+def random_color(rgb: bool = False, maximum: int = 255) -> np.ndarray:
     """
+    Generate a random color vector.
+
     Args:
-        rgb (bool): whether to return RGB colors or BGR colors.
-        maximum (int): either 255 or 1
+        rgb (bool): Whether to return RGB colors (True) or BGR colors (False).
+        maximum (int): Maximum color value (either 1 or 255).
 
     Returns:
-        ndarray: a vector of 3 numbers
+        np.ndarray: A vector of 3 numbers representing the color.
     """
+    if maximum not in _COLOR_MAX_VALUES:
+        raise ValueError(f"maximum must be one of {_COLOR_MAX_VALUES}")
+
     idx = np.random.randint(0, len(_COLORS))
-    ret = (_COLORS[idx] * maximum).astype(np.uint8)
-    if not rgb:
-        ret = ret[::-1]
-    return ret
+    color = (_COLORS[idx] * maximum).astype(np.uint8)
+
+    return color if rgb else color[::-1]
 
 
-def add_num_marks(image: Image.Image, compos: list, fontsize: int = 18) -> Image.Image:
+def add_num_marks(
+    image: Image.Image, compos: list[dict], fontsize: int = 18
+) -> Image.Image:
     """
-    Adds the number of marks to the image.
+    Adds numbered marks to the image.
 
     Args:
         image (Image.Image): The image to add the marks to.
-        compos (dict): The
+        compos (list[dict]): List of component dictionaries.
+        fontsize (int): Font size for the marks.
 
     Returns:
         Image.Image: The image with the marks added.
     """
+    if fontsize < 1:
+        raise ValueError("fontsize must be greater than 0")
+
+    non_text_compos = _filter_and_sort_compos(compos)
+
+    mask, nums = _prepare_layers(image.size)
+    font = ImageFont.truetype("arial.ttf", fontsize)
+
+    for compo in non_text_compos:
+        compo_color = tuple(random_color(rgb=True))
+        lower_compos = get_lower_compos(compo, compos)
+        text_location, text_rectangle = _compute_text_location(
+            compo, font, lower_compos
+        )
+
+        _draw_component(
+            mask, nums, compo, text_location, text_rectangle, compo_color, font
+        )
+
+    image = Image.alpha_composite(image.convert("RGBA"), mask.convert("RGBA"))
+    image = Image.alpha_composite(image, nums).convert("RGB")
+
+    return image
+
+
+def _filter_and_sort_compos(compos: list[dict]) -> list[dict]:
+    """
+    Filter non-text components and sort them by area in descending order.
+    Also removes duplicate components with shorter xpaths.
+
+    Args:
+        compos (list[dict]): List of component dictionaries.
+
+    Returns:
+        list[dict]: Filtered and sorted list of non-text components.
+    """
     compos = sorted(compos, key=lambda comp: Polygon(comp["points"]).area, reverse=True)
-    non_text_compos = list(filter(lambda comp: comp["class"] != "Text", compos))
-    temp_compos = copy.deepcopy(
-        non_text_compos
-    )  # Prevent changing values in origial list in the next loop
-    # If there are more than one compo with the same coords, we keep the one with the longest xpath
+    non_text_compos = [comp for comp in compos if comp["class"] != "Text"]
+
+    temp_compos = copy.deepcopy(non_text_compos)
+
     for i, compo in enumerate(temp_compos):
-        for j, other_compo in enumerate(temp_compos[:i]):
+        for other_compo in temp_compos[:i]:
             if compo["points"] == other_compo["points"]:
                 if len(compo["xpath"]) < len(other_compo["xpath"]):
                     non_text_compos.remove(compo)
@@ -100,50 +145,48 @@ def add_num_marks(image: Image.Image, compos: list, fontsize: int = 18) -> Image
                     non_text_compos.remove(other_compo)
                 break
 
-    del temp_compos
+    return non_text_compos
 
-    mask = Image.new("RGBA", image.size, 0)
+
+def _prepare_layers(image_size: tuple[int, int]) -> tuple[Image.Image, Image.Image]:
+    """
+    Prepare the mask and number layers for drawing.
+
+    Args:
+        image_size (tuple[int, int]): Size of the image.
+
+    Returns:
+        tuple[Image.Image, Image.Image]: The mask and number layers.
+    """
+    mask = Image.new("RGBA", image_size, 0)
+    nums = Image.new("RGBA", image_size, (255, 255, 255, 0))
+    return mask, nums
+
+
+def _draw_component(
+    mask, nums, compo, text_location, text_rectangle, compo_color, font
+):
+    """
+    Draws the component and its number on the mask and number layers.
+    """
     draw_mask = ImageDraw.Draw(mask)
+    draw_nums = ImageDraw.Draw(nums)
 
-    nums: Image.Image = Image.new("RGBA", image.size, (255, 255, 255, 0))
-    draw = ImageDraw.Draw(nums)
+    draw_mask.polygon(
+        xy=[tuple(point) for point in compo["points"]], fill=compo_color + (50,)
+    )
 
-    font = ImageFont.truetype("arial.ttf", fontsize)
+    draw_mask.rectangle(xy=text_rectangle, fill=(0, 0, 0, 200))
 
-    for compo in non_text_compos:
-        compo_color = tuple(random_color(rgb=True, maximum=255))
-
-        lower_compos = get_lower_compos(compo, compos)
-
-        text_location, text_rectangle = _compute_text_location(
-            compo, font, lower_compos
-        )
-
-        draw_mask.polygon(
-            xy=[tuple(point) for point in compo["points"]],
-            fill=compo_color + (50,),
-        )
-
-        draw_mask.rectangle(
-            xy=text_rectangle,
-            fill=(0, 0, 0, 200),
-        )
-
-        draw.text(
-            xy=text_location,
-            text=str(compo["id"]),
-            fill=compo_color,
-            stroke_fill=compo_color,
-            stroke_width=0.1,
-            font=font,
-            anchor="mm",
-        )
-
-    image = Image.alpha_composite(image.convert("RGBA"), mask.convert("RGBA"))
-    image = Image.alpha_composite(image, nums).convert("RGB")
-
-    image.save("image.png")
-    return image
+    draw_nums.text(
+        xy=text_location,
+        text=str(compo["id"]),
+        fill=compo_color,
+        stroke_fill=compo_color,
+        stroke_width=0.1,
+        font=font,
+        anchor="mm",
+    )
 
 
 def _compute_text_location(
@@ -151,17 +194,10 @@ def _compute_text_location(
     font: ImageFont.FreeTypeFont,
     lower_compos: list = [],
     surround_factor: float = 0.6,
+    allowed_overshadowing: float = 0.10,
 ) -> tuple[tuple[float, float], list[tuple[float, float]]]:
     """
     Computes the location and rectangle where the text will be drawn.
-
-    Args:
-        compo (dict): The component to draw the text on.
-        font (ImageFont): The font to use.
-        surround_factor (float): The factor to multiply the text size by to get the surrounding rectangle.
-
-    Returns:
-        tuple[tuple[float, float], list[tuple[float, float]]]: The location and rectangle where the text will be drawn.
     """
     compo_mask = Polygon(compo["points"])
     for lower_compo in lower_compos:
@@ -176,7 +212,6 @@ def _compute_text_location(
         surround_factor,
     )
 
-    # We need to make sure the rectangle does not take too much space of the component
     if (
         compo_mask.intersection(
             Polygon(
@@ -189,9 +224,8 @@ def _compute_text_location(
             )
         ).area
         / compo_mask.area
-        > 0.10
+        > allowed_overshadowing
     ):
-        # We move it to the top right corner
         text_location = (
             text_location[0] + txt_w * surround_factor,
             text_location[1] - txt_h * surround_factor,
@@ -251,33 +285,16 @@ def _move_text_to_free_space(
     return (text_location.x, text_location.y), text_rectangle
 
 
-def get_lower_compos(compo: dict, other_compos: list) -> list:
+def get_lower_compos(compo: dict, other_compos: list[dict]) -> list[dict]:
     """
     Get the components that are lower than the given component.
-    Certain assumptions are made so it is required the components are sorted by area in descending order.
-
-    Args:
-        compo (dict): The component to compare to.
-        other_compos (list[dict]): The other components to compare to.
-
-    Returns:
-        list[dict]: The components that are lower than the given component.
+    Assumes components are sorted by area in descending order.
     """
-    assert isinstance(compo, dict), "compo must be a dictionary"
-    assert "points" in compo, "compo must contain 'points' key"
-    assert isinstance(other_compos, list), "other_compos must be a list"
-
     compo_poly = Polygon(compo["points"])
-    lower_compos = []
-    for i, comp in enumerate(other_compos):
-        if Polygon(comp["points"]).area < compo_poly.area:
-            lower_compos.extend(other_compos[i:])
-            break
-    lower_compos = list(
-        filter(
-            lambda comp: Polygon(comp["points"]).intersects(compo_poly),
-            lower_compos,
-        )
-    )
-
+    lower_compos = [
+        c
+        for c in other_compos
+        if Polygon(c["points"]).area < compo_poly.area
+        and Polygon(c["points"]).intersects(compo_poly)
+    ]
     return lower_compos
