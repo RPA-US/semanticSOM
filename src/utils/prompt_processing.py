@@ -126,6 +126,31 @@ def process_image_for_prompt(
     prompt: str = ""
     img_shape = image.size
 
+    match CFG.prompt_config["crop"]:
+        case "parent":
+            parent_id = target_object["xpath"][-2]
+            parent_object = next(
+                filter(lambda compo: compo["id"] == parent_id, som["compos"]), None
+            )
+            image, som["compos"] = (
+                crop_and_adjust_bbox(
+                    image=image,
+                    compos=som["compos"],
+                    crop_coords=bbox_from_object(obj=parent_object),
+                )
+                if parent_object
+                else (image, som["compos"])
+            )
+        case "target":
+            image, som["compos"] = crop_and_adjust_bbox(
+                image=image,
+                compos=som["compos"],
+                crop_coords=bbox_from_object(obj=target_object),
+            )
+            sys_prompt = COT_ACTION_TARGET_ELEM
+        case _:
+            pass
+
     if "highlight" in CFG.prompt_config["technique"]:
         # Highlight the target object
         image = highlight_compo(image=image, compo=target_object)
@@ -134,7 +159,7 @@ def process_image_for_prompt(
         # Add the SOM to the image
         image = add_num_marks(
             image=image,
-            compos=list(filter(lambda comp: comp["class"] != "Text", som["compos"])),
+            compos=som["compos"],
         )
         prompt = (
             f"Identify the element marked in the image with the number {target_object['id']}"
@@ -142,27 +167,9 @@ def process_image_for_prompt(
             else prompt
             + f" Note that the element is identified with the number {target_object['id']}."
         )
-    if CFG.prompt_config["technique"] == []:
+    if CFG.prompt_config["technique"] == [] and CFG.prompt_config["crop"] != "target":
         sys_prompt = COT_ACTION_TARGET_COORDS
 
-    match CFG.prompt_config["crop"]:
-        case "parent":
-            parent_id = target_object["xpath"][-2]
-            parent_object = next(
-                filter(lambda compo: compo["id"] == parent_id, som["compos"]), None
-            )
-            image = (
-                image.crop(box=bbox_from_object(obj=parent_object))
-                if parent_object
-                else image
-            )
-        case "target":
-            image = image.crop(box=bbox_from_object(obj=target_object))
-            sys_prompt = COT_ACTION_TARGET_ELEM
-        case _:
-            pass
-
-    # We do this again here because we may need to recompute the click coordinates after cropping
     if CFG.prompt_config["technique"] == []:
         new_img_shape = image.size
         new_coords = Coords(
@@ -201,3 +208,67 @@ def highlight_compo(image: Image.Image, compo: dict) -> Image.Image:
         thickness=3,
     )
     return Image.fromarray(obj=cv2.cvtColor(src=cv_img, code=cv2.COLOR_BGR2RGB))
+
+
+def crop_and_adjust_bbox(
+    image: Image.Image, compos: list, crop_coords: tuple[int, int, int, int]
+) -> tuple[Image.Image, list]:
+    """
+    Crops the image to the bounding box specified and adjust all the components coords accordingly.
+
+    Args:
+        image (Image.Image): The image to crop.
+        som (dict): The structure of the image.
+        crop_coords (tuple[int, int]): The coordinates of the bounding box to crop.
+
+    Returns:
+        Image.Image: The cropped image.
+    """
+    assert isinstance(image, Image.Image), "image must be a PIL Image"
+    assert isinstance(compos, list), "compos must be a list"
+    assert all(isinstance(compo, dict) for compo in compos), (
+        "compos must be a list of dictionaries"
+    )
+
+    # 1. Crop the image
+    cropped_image = image.crop(box=crop_coords)
+    # 2. Filter by components contained in the crop
+    remaining_compos = list(
+        filter(
+            lambda compo: Polygon(compo["points"]).intersects(
+                Polygon(
+                    [
+                        (crop_coords[0], crop_coords[1]),
+                        (crop_coords[2], crop_coords[1]),
+                        (crop_coords[2], crop_coords[3]),
+                        (crop_coords[0], crop_coords[3]),
+                    ]
+                )
+            ),
+            compos,
+        )
+    )
+    # 3. Adjust the coordinates of the remaining components
+    for compo in remaining_compos:
+        compo["points"] = [
+            (
+                max(
+                    0,
+                    min(
+                        point[0] - crop_coords[0],
+                        crop_coords[2] - crop_coords[0],
+                    ),
+                ),
+                max(
+                    0,
+                    min(
+                        point[1] - crop_coords[1],
+                        crop_coords[3] - crop_coords[1],
+                    ),
+                ),
+            )
+            for point in compo["points"]
+        ]
+        compo["centroid"] = Polygon(compo["points"]).centroid.coords[0]
+
+    return cropped_image, remaining_compos
