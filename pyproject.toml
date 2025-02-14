@@ -25,7 +25,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["setuptools>=70.0.0", "pre-commit==4.0.1"]
+dev = [
+    "setuptools>=70.0.0",
+    "pre-commit==4.0.1",
+    "coverage>=7.6.12",
+]
 
 [build-system]
 requires = ["setuptools"]
