@@ -16,7 +16,9 @@ def build_tree(tree: list, depth=1, text_class="Text"):
         list: A tree representing the hierarchy of the compos.
     """
     assert isinstance(tree, list), "tree must be a list"
-    assert all(isinstance(compo, dict) for compo in tree), "all elements in tree must be dictionaries"
+    assert all(isinstance(compo, dict) for compo in tree), (
+        "all elements in tree must be dictionaries"
+    )
     for compo1 in tree:
         if compo1["depth"] != depth:
             continue
@@ -61,15 +63,20 @@ def ensure_toplevel(tree: dict, bring_up=None):
         bring_up = []
     children = tree["children"]
     for child in children:
-        if child["type"] == "node":
+        if child["type"] != "leaf":
             child["children"], bring_up = ensure_toplevel(child, bring_up=bring_up)
             if len(child["children"]) == 0:
                 child["type"] = "leaf"
             if child["class"] in ["Application", "Taskbar", "Dock"]:
                 bring_up.append(child)
-                # remove 1st elements from list(stack), if any
-                if len(child["xpath"]) > 0:
-                    child["xpath"].pop(0)
+                # remove 2nd to last elements from list(stack), if any
+                if len(child["xpath"]) > 2:
+                    child["xpath"] = [child["xpath"][0], child["xpath"][-1]]
+        elif child["class"] in ["Application", "Taskbar", "Dock"]:
+            bring_up.append(child)
+            # remove 2nd to last elements from list(stack), if any
+            if len(child["xpath"]) > 2:
+                child["xpath"] = [child["xpath"][0], child["xpath"][-1]]
 
     new_children = list(filter(lambda c: c not in bring_up, children))
 
@@ -94,10 +101,10 @@ def readjust_depth(nodes, depth):
         list: The nodes with adjusted depth.
     """
     assert isinstance(nodes, list), "nodes must be a list"
-    assert all(isinstance(node, dict) for node in nodes), "all elements in nodes must be dictionaries"
+    assert all(isinstance(node, dict) for node in nodes), (
+        "all elements in nodes must be dictionaries"
+    )
     for node in nodes:
-        # Remove xpath elements no longer needed
-        node["xpath"] = node["xpath"][node["depth"] - depth :]
         # Readjust depth
         node["depth"] = depth
         node["children"] = readjust_depth(node["children"], depth + 1)
@@ -189,7 +196,9 @@ def flatten_som(tree):
         list: A flattened list of nodes.
     """
     assert isinstance(tree, list), "tree must be a list"
-    assert all(isinstance(node, dict) for node in tree), "all elements in tree must be dictionaries"
+    assert all(isinstance(node, dict) for node in tree), (
+        "all elements in tree must be dictionaries"
+    )
     flattened = []
     for node in tree:
         flattened.append(node)

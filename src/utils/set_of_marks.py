@@ -81,8 +81,8 @@ _COLORS = np.array(
         0.857, 0.857, 0.857,
         1.000, 1.000, 1.000
     ]
-) * 255
-_COLORS = _COLORS.astype(int).reshape(-1, 3)
+)
+_COLORS = _COLORS.astype(np.float16).reshape(-1, 3)
 # fmt: on
 
 
@@ -96,7 +96,7 @@ def random_color(rgb=False, maximum=255):
         ndarray: a vector of 3 numbers
     """
     idx = np.random.randint(0, len(_COLORS))
-    ret = _COLORS[idx] * maximum
+    ret = (_COLORS[idx] * maximum).astype(np.uint8)
     if not rgb:
         ret = ret[::-1]
     return ret
