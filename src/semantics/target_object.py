@@ -37,6 +37,7 @@ class Cache:
         Returns:
             bool | dict[tuple[int, int], str]: False if not in cache, otherwise a dictionary of coordinates and target elements.
         """
+        assert isinstance(img, Image.Image), "img must be a PIL Image"
         # TODO
         # We first have to set the img to a standard size
         # We also make the img black and white to reduce dimensions and color difference errors
@@ -60,6 +61,9 @@ class Cache:
             coords (Coords): The coordinates of the target point.
             target_element (str): The identified target element.
         """
+        assert isinstance(img, Image.Image), "img must be a PIL Image"
+        assert isinstance(coords, Coords), "coords must be an instance of Coords"
+        assert isinstance(target_element, str), "target_element must be a string"
         # TODO
         pass
 
@@ -79,11 +83,15 @@ def identify_target_element(
     Returns:
         str: The identified target element.
     """
+    assert isinstance(screenshot, Image.Image), "screenshot must be a PIL Image"
+    assert isinstance(som, dict), "som must be a dictionary"
+    assert isinstance(coords, Coords), "coords must be an instance of Coords"
     image, sys_prompt, prompt = process_image_for_prompt(
         image=screenshot, som=som, coords=coords
     )
 
     model_output: str = model(prompt=prompt, sys_prompt=sys_prompt, image=image)
+    assert isinstance(model_output, str), "model_output must be a string"
 
     if match_group := re.search(
         pattern=r"<\|target_element\|>(.*)<\|end_target_element\|>", string=model_output
@@ -106,6 +114,8 @@ def semantize_targets(
     Returns:
         pl.DataFrame: The semantized event log.
     """
+    assert isinstance(event_log, pl.DataFrame), "event_log must be a Polars DataFrame"
+    assert isinstance(cache, Cache), "cache must be an instance of Cache"
     event_target_col: list[str] = []
 
     for row in event_log.iter_rows(named=True):
@@ -146,6 +156,7 @@ def semantize_targets(
         )
 
     event_log = event_log.with_columns(EventTarget=pl.Series(values=event_target_col))
+    assert isinstance(event_log, pl.DataFrame), "event_log must be a Polars DataFrame"
 
     return event_log
 

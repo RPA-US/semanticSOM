@@ -15,6 +15,8 @@ def build_tree(tree: list, depth=1, text_class="Text"):
     Returns:
         list: A tree representing the hierarchy of the compos.
     """
+    assert isinstance(tree, list), "tree must be a list"
+    assert all(isinstance(compo, dict) for compo in tree), "all elements in tree must be dictionaries"
     for compo1 in tree:
         if compo1["depth"] != depth:
             continue
@@ -53,6 +55,8 @@ def ensure_toplevel(tree: dict, bring_up=None):
     Returns:
         tuple: A tuple containing the new children and the bring_up list.
     """
+    assert isinstance(tree, dict), "tree must be a dictionary"
+    assert "children" in tree, "tree must contain 'children' key"
     if bring_up is None:
         bring_up = []
     children = tree["children"]
@@ -73,6 +77,8 @@ def ensure_toplevel(tree: dict, bring_up=None):
         new_children.extend(bring_up)
         new_children = readjust_depth(new_children, 1)
 
+    assert isinstance(new_children, list), "new_children must be a list"
+    assert isinstance(bring_up, list), "bring_up must be a list"
     return new_children, bring_up
 
 
@@ -87,6 +93,8 @@ def readjust_depth(nodes, depth):
     Returns:
         list: The nodes with adjusted depth.
     """
+    assert isinstance(nodes, list), "nodes must be a list"
+    assert all(isinstance(node, dict) for node in nodes), "all elements in nodes must be dictionaries"
     for node in nodes:
         # Remove xpath elements no longer needed
         node["xpath"] = node["xpath"][node["depth"] - depth :]
@@ -94,6 +102,7 @@ def readjust_depth(nodes, depth):
         node["depth"] = depth
         node["children"] = readjust_depth(node["children"], depth + 1)
 
+    assert isinstance(nodes, list), "nodes must be a list"
     return nodes
 
 
@@ -107,6 +116,8 @@ def labels_to_soms(labels: dict):
     Returns:
         dict: Pairs of image name and SOM.
     """
+    assert isinstance(labels, dict), "labels must be a dictionary"
+    assert "shapes" in labels, "labels must contain 'shapes' key"
     compos = labels["shapes"]
     labels["compos"] = labels.pop("shapes")
     for id, compo in enumerate(compos):
@@ -163,6 +174,7 @@ def labels_to_soms(labels: dict):
 
     labels["som"] = som
 
+    assert isinstance(labels, dict), "labels must be a dictionary"
     return labels
 
 
@@ -176,11 +188,14 @@ def flatten_som(tree):
     Returns:
         list: A flattened list of nodes.
     """
+    assert isinstance(tree, list), "tree must be a list"
+    assert all(isinstance(node, dict) for node in tree), "all elements in tree must be dictionaries"
     flattened = []
     for node in tree:
         flattened.append(node)
         if node["type"] == "node":
             flattened.extend(flatten_som(node["children"]))
+    assert isinstance(flattened, list), "flattened must be a list"
     return flattened
 
 

@@ -44,6 +44,10 @@ def identify_target_object(image: Image.Image, som: dict, coords: Coords) -> dic
     Returns:
         dict: The identified target object.
     """
+    assert isinstance(image, Image.Image), "image must be a PIL Image"
+    assert isinstance(som, dict), "som must be a dictionary"
+    assert isinstance(coords, Coords), "coords must be an instance of Coords"
+
     target_object: dict = dict()
 
     non_text_compos = list(
@@ -70,6 +74,7 @@ def identify_target_object(image: Image.Image, som: dict, coords: Coords) -> dic
             ):
                 target_object = compo
 
+    assert isinstance(target_object, dict), "target_object must be a dictionary"
     return target_object
 
 
@@ -83,6 +88,9 @@ def bbox_from_object(obj: dict) -> tuple[int, int, int, int]:
     Returns:
         tuple[int, int, int, int]: The bounding box coordinates (x_min, y_min, x_max, y_max).
     """
+    assert isinstance(obj, dict), "obj must be a dictionary"
+    assert "points" in obj, "obj must contain 'points' key"
+
     x_coords = [point[0] for point in obj["points"]]
     y_coords = [point[1] for point in obj["points"]]
     return min(x_coords), min(y_coords), max(x_coords), max(y_coords)
@@ -109,6 +117,10 @@ def process_image_for_prompt(
     Returns:
         tuple[Image.Image, str, str]: The processed image, system prompt, and user prompt.
     """
+    assert isinstance(image, Image.Image), "image must be a PIL Image"
+    assert isinstance(som, dict), "som must be a dictionary"
+    assert isinstance(coords, Coords), "coords must be an instance of Coords"
+
     target_object: dict = identify_target_object(image=image, som=som, coords=coords)
     sys_prompt: str = COT_ACTION_TARGET_BASE
     prompt: str = ""
@@ -159,6 +171,9 @@ def process_image_for_prompt(
         )
         prompt = f"Identify the element at coordinates ({new_coords.x}, {new_coords.y})"
 
+    assert isinstance(image, Image.Image), "processed image must be a PIL Image"
+    assert isinstance(sys_prompt, str), "sys_prompt must be a string"
+    assert isinstance(prompt, str), "prompt must be a string"
     return image, sys_prompt, prompt
 
 
@@ -173,6 +188,10 @@ def highlight_compo(image: Image.Image, compo: dict) -> Image.Image:
     Returns:
         Image.Image: The image with the component highlighted.
     """
+    assert isinstance(image, Image.Image), "image must be a PIL Image"
+    assert isinstance(compo, dict), "compo must be a dictionary"
+    assert "points" in compo, "compo must contain 'points' key"
+
     cv_img = cv2.cvtColor(src=np.array(object=image), code=cv2.COLOR_RGB2BGR)
     cv2.polylines(
         img=cv_img,

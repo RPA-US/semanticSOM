@@ -169,6 +169,10 @@ class Qwen2Model(ModelInterface):
             max_tokens (int): The maximum number of tokens to generate.
             **kwargs (Any): Additional keyword arguments.
         """
+        assert isinstance(sys_prompt, str), "sys_prompt must be a string"
+        assert isinstance(user_prompt, str), "user_prompt must be a string"
+        assert isinstance(max_tokens, int), "max_tokens must be an integer"
+
         model, processor = self.load_model()
 
         messages: List[Dict[str, Any]] = []
@@ -213,6 +217,7 @@ class Qwen2Model(ModelInterface):
             "",
         )
 
+        assert isinstance(processed_output_text, str), "processed_output_text must be a string"
         model = processor = inputs = generated_ids = generated_ids_trimmed = None  # type: ignore
         self.unload(model, processor, inputs, generated_ids, generated_ids_trimmed)
 
@@ -241,6 +246,9 @@ class Qwen2Model(ModelInterface):
         Returns:
             str: The model output as a string.
         """
+        assert isinstance(prompt, str), "prompt must be a string"
+        assert stop is None or isinstance(stop, list), "stop must be None or a list"
+
         # This is strictly necessary to ensure ALL memory held by torch is released when the inference is done
         # Running the inference without this results in many dangling tensors for some reason
         result_queue: Queue = Queue()
@@ -257,7 +265,9 @@ class Qwen2Model(ModelInterface):
         p.join()
 
         # result_queue.get() function as a pop. Always save it to a variable or return it directly
-        return result_queue.get()
+        result = result_queue.get()
+        assert isinstance(result, str), "result must be a string"
+        return result
 
     def load_model(self) -> Tuple[Any, AutoProcessor]:
         """
@@ -266,10 +276,14 @@ class Qwen2Model(ModelInterface):
         Returns:
             Tuple[Any, AutoProcessor]: The loaded model and processor.
         """
+        assert isinstance(self.model_name, str), "model_name must be a string"
+
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype="auto", device_map="auto"
         )
         processor = AutoProcessor.from_pretrained(self.model_name)
+        assert isinstance(model, AutoModelForCausalLM), "model must be an instance of AutoModelForCausalLM"
+        assert isinstance(processor, AutoProcessor), "processor must be an instance of AutoProcessor"
         return model, processor
 
 
@@ -304,6 +318,10 @@ class QwenVLModel(Qwen2Model):
             max_tokens (int): The maximum number of tokens to generate.
             **kwargs (Any): Additional keyword arguments.
         """
+        assert isinstance(sys_prompt, str), "sys_prompt must be a string"
+        assert isinstance(user_prompt, str), "user_prompt must be a string"
+        assert isinstance(max_tokens, int), "max_tokens must be an integer"
+
         model, processor = self.load_model()
 
         messages: List[Dict[str, Any]] = []
@@ -361,6 +379,7 @@ class QwenVLModel(Qwen2Model):
             "",
         )
 
+        assert isinstance(processed_output_text, str), "processed_output_text must be a string"
         model = processor = inputs = generated_ids = generated_ids_trimmed = None  # type: ignore
         self.unload(model, processor, inputs, generated_ids, generated_ids_trimmed)
 
@@ -391,6 +410,9 @@ class QwenVLModel(Qwen2Model):
         Returns:
             str: The model output as a string.
         """
+        assert isinstance(prompt, str), "prompt must be a string"
+        assert stop is None or isinstance(stop, list), "stop must be None or a list"
+
         # This is strictly necessary to ensure ALL memory held by torch is released when the inference is done
         # Running the inference without this results in many dangling tensors for some reason
         result_queue: Queue = Queue()
@@ -407,7 +429,9 @@ class QwenVLModel(Qwen2Model):
         p.join()
 
         # result_queue.get() function as a pop. Always save it to a variable or return it directly
-        return result_queue.get()
+        result = result_queue.get()
+        assert isinstance(result, str), "result must be a string"
+        return result
 
     def load_model(self) -> Tuple[Qwen2VLForConditionalGeneration, AutoProcessor]:
         """

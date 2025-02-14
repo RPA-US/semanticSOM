@@ -132,6 +132,8 @@ class Semantizer:
         Args:
             event (dict): The event to process.
         """
+        assert isinstance(event, dict), "event must be a dictionary"
+        assert "EventType" in event, "event must contain 'EventType' key"
         self.current_event = event
         match event["EventType"]:
             case "right_click":
@@ -144,13 +146,17 @@ class Semantizer:
                 self.current_action = self.infer_keyboard_event(event["Text"].lower())
             case _:
                 raise ValueError("Invalid action type")
+        assert self.current_action is not None, "current_action must not be None"
 
     def next(self, event: dict) -> None:
+        assert isinstance(event, dict), "event must be a dictionary"
         if self.current_event:
             self.previous_event = self.current_event
         self.calc_event(event)
+        assert self.current_event is not None, "current_event must not be None"
 
     def infer_keyboard_event(self, text: str) -> Action:
+        assert isinstance(text, str), "text must be a string"
         shortcut_regex = r"^(ctrl|alt|super|meta)"
         if re.match(shortcut_regex, text):
             global_state.send("shortcut")
@@ -168,8 +174,11 @@ class Semantizer:
             case _:
                 global_state.send("write")
                 return Action.TYPE
+        assert isinstance(self.current_action, Action), "current_action must be an instance of Action"
+        return self.current_action
 
     def construct_event_description(self) -> str:
+        assert self.current_action is not None, "current_action must not be None"
         match self.current_action:
             case Action.RIGHT_CLICK:
                 return f"Right clicked on {self.current_event['EventTarget']}"
@@ -206,6 +215,7 @@ class Semantizer:
         Returns:
             pl.DataFrame: The semantized event log.
         """
+        assert isinstance(event_log, pl.DataFrame), "event_log must be a Polars DataFrame"
         event_desc_col: list[str] = []
         for event in event_log.iter_rows(named=True):  # event: dict[str, Any]
             self.next(event)
@@ -214,6 +224,7 @@ class Semantizer:
         res: pl.DataFrame = event_log.with_columns(
             pl.Series("EventDescription", event_desc_col).alias("EventDescription")
         )
+        assert isinstance(res, pl.DataFrame), "res must be a Polars DataFrame"
         return res
 
 
