@@ -148,35 +148,37 @@ def process_image_for_prompt(
                 crop_coords=bbox_from_object(obj=target_object),
             )
             sys_prompt = COT_ACTION_TARGET_ELEM
+            prompt = "Identify the element shown in the image"
         case _:
             pass
 
-    if "highlight" in CFG.prompt_config["technique"]:
-        # Highlight the target object
-        image = highlight_compo(image=image, compo=target_object)
-        prompt = "Identify the object highlighted in the image."
-    if "som" in CFG.prompt_config["technique"]:
-        # Add the SOM to the image
-        image = add_num_marks(
-            image=image,
-            compos=som["compos"],
-        )
-        prompt = (
-            f"Identify the element marked in the image with the number {target_object['id']}"
-            if not prompt
-            else prompt
-            + f" Note that the element is identified with the number {target_object['id']}."
-        )
-    if CFG.prompt_config["technique"] == [] and CFG.prompt_config["crop"] != "target":
-        sys_prompt = COT_ACTION_TARGET_COORDS
-
-    if CFG.prompt_config["technique"] == []:
-        new_img_shape = image.size
-        new_coords = Coords(
-            x=coords.x * new_img_shape[0] // img_shape[0],
-            y=coords.y * new_img_shape[1] // img_shape[1],
-        )
-        prompt = f"Identify the element at coordinates ({new_coords.x}, {new_coords.y})"
+    if CFG.prompt_config["crop"] != "target":
+        if "highlight" in CFG.prompt_config["technique"]:
+            # Highlight the target object
+            image = highlight_compo(image=image, compo=target_object)
+            prompt = "Identify the object highlighted in the image."
+        if "som" in CFG.prompt_config["technique"]:
+            # Add the SOM to the image
+            image = add_num_marks(
+                image=image,
+                compos=som["compos"],
+            )
+            prompt = (
+                f"Identify the element marked in the image with the number {target_object['id']}"
+                if not prompt
+                else prompt
+                + f" Note that the element is identified with the number {target_object['id']}."
+            )
+        if CFG.prompt_config["technique"] == []:
+            sys_prompt = COT_ACTION_TARGET_COORDS
+            new_img_shape = image.size
+            new_coords = Coords(
+                x=coords.x * new_img_shape[0] // img_shape[0],
+                y=coords.y * new_img_shape[1] // img_shape[1],
+            )
+            prompt = (
+                f"Identify the element at coordinates ({new_coords.x}, {new_coords.y})"
+            )
 
     assert isinstance(image, Image.Image), "processed image must be a PIL Image"
     assert isinstance(sys_prompt, str), "sys_prompt must be a string"
