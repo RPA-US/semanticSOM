@@ -25,6 +25,12 @@ class CFG:
     }
 
     prompt_config: dict[str, list[str] | str] = {
-        "technique": ["highlight"],  # possible values: "som", "highlight"
-        "crop": "parent",  # possible values: "parent", "target", "none"
+        "technique": ["som"],  # possible values: "som", "highlight"
+        "crop": "none",  # possible values: "parent", "target", "none"
+    }
+
+    eval_config: dict[str, str] = {
+        "jsonl_path": f"{project_root}/input/eval/eval.jsonl",
+        "model": "local_qwen_vl",
+        "output_path": f"{project_root}/output/eval_result.jsonl",
     }

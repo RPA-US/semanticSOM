@@ -30,6 +30,7 @@ dev = [
     "setuptools>=70.0.0",
     "pre-commit==4.0.1",
     "coverage>=7.6.12",
+    "types-requests>=2.31.0.6",
 ]
 
 [build-system]
