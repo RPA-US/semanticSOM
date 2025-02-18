@@ -26,7 +26,7 @@ class CFG:
 
     prompt_config: dict[str, list[str] | str] = {
         "technique": ["som"],  # possible values: "som", "highlight"
-        "crop": "none",  # possible values: "parent", "target", "none"
+        "crop": "parent",  # possible values: "parent", "target", "none"
     }
 
     eval_config: dict[str, str] = {

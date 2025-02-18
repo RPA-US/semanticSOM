@@ -158,13 +158,19 @@ def process_image_for_prompt(
             image = highlight_compo(image=image, compo=target_object)
             prompt = "Identify the object highlighted in the image."
         if "som" in CFG.prompt_config["technique"]:
+            # We recompute the ids to make it easir to identify the target object (lower numbers make it easier, same context and info, less cognitive load)
+            for idx, compo in enumerate(
+                filter(lambda c: c["class"] != "Text", som["compos"])
+            ):
+                compo["id"] = idx + 1
+
             # Add the SOM to the image
             image = add_num_marks(
                 image=image,
                 compos=som["compos"],
             )
             prompt = (
-                f"Identify the element marked in the image with the number {target_object['id']}"
+                f"Identify the element marked in the image with the number {target_object['id']}"  # DANGER: If target object becomes a non-shallow copy, this id will be the old one
                 if not prompt
                 else prompt
                 + f" Note that the element is identified with the number {target_object['id']}."
