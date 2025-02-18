@@ -22,6 +22,7 @@ dependencies = [
     "imagehash>=4.3.2",
     "opencv-python>=4.11.0.86",
     "shapely>=2.0.7",
+    "openai>=1.63.2",
 ]
 
 [dependency-groups]
@@ -48,6 +49,15 @@ url = "https://abetlen.github.io/llama-cpp-python/whl/cu124"
 
 [project.scripts]
 dev-setup = "scripts.dev_setup:main"
+eval = "src.mllm_judge.api_benchmarks:main"
+
+[project.optional-dependencies]
+eval = [
+    "dashscope>=1.22.1",
+    "google-genai>=1.2.0",
+    "google-generativeai>=0.8.4",
+    "replicate>=1.0.4",
+]
 
 [tool.ruff]
 

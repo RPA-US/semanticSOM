@@ -6,13 +6,16 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 import torch
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
+from openai import OpenAI
 from qwen_vl_utils import process_vision_info
 from transformers import (
-    AutoProcessor,
-    Qwen2VLForConditionalGeneration,
     # Qwen2_5_VLForConditionalGeneration,
     AutoModelForCausalLM,
+    AutoProcessor,
+    Qwen2VLForConditionalGeneration,
 )
+
+import src.utils.images as images_utils
 
 #######
 # INTERFACES
@@ -31,6 +34,8 @@ class ModelInterface(LLM, ABC):
     temperature: float = 0.01
     top_p: float = 0.9
     history_len: int = 0
+    openai_server: Optional[str] = None
+    api_key: Optional[str] = None
 
     @property
     def _llm_type(self) -> str:
@@ -134,24 +139,16 @@ class ModelInterface(LLM, ABC):
 #######
 
 
-class Qwen2Model(ModelInterface):
+class TextModel(ModelInterface):
     """
-    Implementation of the Qwen2 model interface.
+    A model interface for text-only inference.
     """
 
     capabilities: List[str] = ["text"]
 
-    def __init__(
-        self,
-        model_name: str,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, model_name: str, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.model_name: str = model_name
-
-    def set_history_len(self, history_len: int = 10) -> None:
-        self.history_len = history_len
 
     def inference(
         self,
@@ -161,30 +158,47 @@ class Qwen2Model(ModelInterface):
         **kwargs: Any,
     ) -> None:
         """
-        Performs an inference using the Qwen2 model.
-
-        Args:
-            sys_prompt (str): The system prompt.
-            user_prompt (str): The user prompt.
-            max_tokens (int): The maximum number of tokens to generate.
-            **kwargs (Any): Additional keyword arguments.
+        Performs an inference using a text-only model.
         """
         assert isinstance(sys_prompt, str), "sys_prompt must be a string"
         assert isinstance(user_prompt, str), "user_prompt must be a string"
         assert isinstance(max_tokens, int), "max_tokens must be an integer"
 
-        model, processor = self.load_model()
-
         messages: List[Dict[str, Any]] = []
-        if sys_prompt:
-            messages.append({"role": "system", "content": sys_prompt})
+        processed_output_text: str
+        if self.openai_server:
+            if sys_prompt:
+                messages.append({"role": "system", "content": sys_prompt})
+            messages.append({"role": "user", "content": user_prompt})
+            client = OpenAI(base_url=self.openai_server, api_key=self.api_key)
+            processed_output_text = (
+                client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,  # type: ignore
+                    max_tokens=max_tokens,
+                    temperature=self.temperature,
+                    top_p=self.top_p,
+                )
+                .choices[0]
+                .message.content
+            )
+            kwargs["result_queue"].put(processed_output_text)
+        else:
+            if sys_prompt:
+                messages.append({"role": "system", "content": sys_prompt})
+            messages.append({"role": "user", "content": user_prompt})
+            processed_output_text = self._local_inference(
+                messages, max_tokens=max_tokens, **kwargs
+            )
+            kwargs["result_queue"].put(processed_output_text)
 
-        messages.append(
-            {
-                "role": "user",
-                "content": user_prompt,
-            },
-        )
+    def _local_inference(
+        self,
+        messages: List[Dict[str, Any]],
+        max_tokens: int = 512,
+        **kwargs: Any,
+    ) -> str:
+        model, processor = self.load_model()
 
         text: str = processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -197,7 +211,7 @@ class Qwen2Model(ModelInterface):
         )
         inputs = inputs.to("cuda")
 
-        # Inference: Generation of the output
+        # Inference: Generate output tokens
         with torch.no_grad():
             generated_ids = model.generate(**inputs, max_new_tokens=max_tokens)
 
@@ -205,7 +219,6 @@ class Qwen2Model(ModelInterface):
             out_ids[len(in_ids) :]
             for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
         ]
-
         processed_output_text: str = next(
             iter(
                 processor.batch_decode(
@@ -217,11 +230,8 @@ class Qwen2Model(ModelInterface):
             "",
         )
 
-        assert isinstance(processed_output_text, str), "processed_output_text must be a string"
-        model = processor = inputs = generated_ids = generated_ids_trimmed = None  # type: ignore
         self.unload(model, processor, inputs, generated_ids, generated_ids_trimmed)
-
-        kwargs["result_queue"].put(processed_output_text)
+        return processed_output_text
 
     def _call(
         self,
@@ -231,26 +241,11 @@ class Qwen2Model(ModelInterface):
         **kwargs: Any,
     ) -> str:
         """
-        Performs an inference using qwen-vl based models.
-
-        Allowed kwargs:
-        - sys_prompt: System prompt
-        - max_tokens: Maximum tokens to generate
-
-        Args:
-            prompt (str): The prompt to generate from.
-            stop (Optional[List[str]]): Stop words to use when generating.
-            run_manager (Optional[CallbackManagerForLLMRun]): Callback manager for the run.
-            **kwargs (Any): Additional keyword arguments.
-
-        Returns:
-            str: The model output as a string.
+        Wraps inference in a separate process to help free GPU memory.
         """
         assert isinstance(prompt, str), "prompt must be a string"
         assert stop is None or isinstance(stop, list), "stop must be None or a list"
 
-        # This is strictly necessary to ensure ALL memory held by torch is released when the inference is done
-        # Running the inference without this results in many dangling tensors for some reason
         result_queue: Queue = Queue()
         max_tokens: int = kwargs.pop("max_tokens", 512)
         sys_prompt: str = kwargs.pop("sys_prompt", "")
@@ -264,43 +259,32 @@ class Qwen2Model(ModelInterface):
         p.start()
         p.join()
 
-        # result_queue.get() function as a pop. Always save it to a variable or return it directly
         result = result_queue.get()
         assert isinstance(result, str), "result must be a string"
         return result
 
     def load_model(self) -> Tuple[Any, AutoProcessor]:
         """
-        Loads and returns the model to make inferences on.
-
-        Returns:
-            Tuple[Any, AutoProcessor]: The loaded model and processor.
+        Loads and returns the text-only model and processor.
         """
         assert isinstance(self.model_name, str), "model_name must be a string"
-
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype="auto", device_map="auto"
         )
         processor = AutoProcessor.from_pretrained(self.model_name)
-        assert isinstance(model, AutoModelForCausalLM), "model must be an instance of AutoModelForCausalLM"
-        assert isinstance(processor, AutoProcessor), "processor must be an instance of AutoProcessor"
         return model, processor
 
 
-class QwenVLModel(Qwen2Model):
+class VisionModel(ModelInterface):
     """
-    Implementation of the QwenVL model interface.
+    A model interface for vision+text inference.
     """
 
     capabilities: List[str] = ["image", "text"]
 
-    def __init__(
-        self,
-        model_name: str,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(model_name, *args, **kwargs)
+    def __init__(self, model_name: str, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.model_name: str = model_name
 
     def inference(
         self,
@@ -310,40 +294,84 @@ class QwenVLModel(Qwen2Model):
         **kwargs: Any,
     ) -> None:
         """
-        Performs an inference using the QwenVL model.
-
-        Args:
-            sys_prompt (str): The system prompt.
-            user_prompt (str): The user prompt.
-            max_tokens (int): The maximum number of tokens to generate.
-            **kwargs (Any): Additional keyword arguments.
+        Performs an inference using a vision+text model.
         """
         assert isinstance(sys_prompt, str), "sys_prompt must be a string"
         assert isinstance(user_prompt, str), "user_prompt must be a string"
         assert isinstance(max_tokens, int), "max_tokens must be an integer"
 
-        model, processor = self.load_model()
-
         messages: List[Dict[str, Any]] = []
-        if sys_prompt:
-            messages.append({"role": "system", "content": sys_prompt})
-
-        messages.append(
-            {
-                "role": "user",
-                "content": [
-                    *[
-                        {
-                            "type": t,
-                            t: val,
-                        }
-                        for t, val in kwargs.items()
-                        if t in self.capabilities
+        processed_output_text: str
+        if self.openai_server:
+            if sys_prompt:
+                messages.append({"role": "system", "content": sys_prompt})
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        *[
+                            {
+                                "type": t,
+                                t: val,
+                            }
+                            if t != "image"
+                            else {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{images_utils.im_2_b64(val)}"
+                                },
+                            }
+                            for t, val in kwargs.items()
+                            if t in self.capabilities
+                        ],
+                        {"type": "text", "text": user_prompt},
                     ],
-                    {"type": "text", "text": user_prompt},
-                ],
-            },
-        )
+                }
+            )
+            client = OpenAI(base_url=self.openai_server, api_key=self.api_key)
+            processed_output_text = (
+                client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,  # type: ignore
+                    max_tokens=max_tokens,
+                    temperature=self.temperature,
+                    top_p=self.top_p,
+                )
+                .choices[0]
+                .message.content
+            )
+            kwargs["result_queue"].put(processed_output_text)
+        else:
+            if sys_prompt:
+                messages.append({"role": "system", "content": sys_prompt})
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        *[
+                            {
+                                "type": t,
+                                t: val,
+                            }
+                            for t, val in kwargs.items()
+                            if t in self.capabilities
+                        ],
+                        {"type": "text", "text": user_prompt},
+                    ],
+                }
+            )
+            processed_output_text = self._local_inference(
+                messages, max_tokens=max_tokens, **kwargs
+            )
+            kwargs["result_queue"].put(processed_output_text)
+
+    def _local_inference(
+        self,
+        messages: List[Dict[str, Any]],
+        max_tokens: int = 512,
+        **kwargs: Any,
+    ) -> str:
+        model, processor = self.load_model()
 
         text: str = processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -359,7 +387,6 @@ class QwenVLModel(Qwen2Model):
         )
         inputs = inputs.to("cuda")
 
-        # Inference: Generation of the output
         with torch.no_grad():
             generated_ids = model.generate(**inputs, max_new_tokens=max_tokens)
 
@@ -367,7 +394,6 @@ class QwenVLModel(Qwen2Model):
             out_ids[len(in_ids) :]
             for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
         ]
-
         processed_output_text: str = next(
             iter(
                 processor.batch_decode(
@@ -379,11 +405,8 @@ class QwenVLModel(Qwen2Model):
             "",
         )
 
-        assert isinstance(processed_output_text, str), "processed_output_text must be a string"
-        model = processor = inputs = generated_ids = generated_ids_trimmed = None  # type: ignore
         self.unload(model, processor, inputs, generated_ids, generated_ids_trimmed)
-
-        kwargs["result_queue"].put(processed_output_text)
+        return processed_output_text
 
     def _call(
         self,
@@ -393,28 +416,11 @@ class QwenVLModel(Qwen2Model):
         **kwargs: Any,
     ) -> str:
         """
-        Performs an inference using qwen-vl based models.
-
-        Allowed kwargs:
-        - sys_prompt: System prompt
-        - max_tokens: Maximum tokens to generate
-        - image: List of image paths
-        - text: List of text prompts
-
-        Args:
-            prompt (str): The prompt to generate from.
-            stop (Optional[List[str]]): Stop words to use when generating.
-            run_manager (Optional[CallbackManagerForLLMRun]): Callback manager for the run.
-            **kwargs (Any): Additional keyword arguments.
-
-        Returns:
-            str: The model output as a string.
+        Wraps vision+text inference in a separate process.
         """
         assert isinstance(prompt, str), "prompt must be a string"
         assert stop is None or isinstance(stop, list), "stop must be None or a list"
 
-        # This is strictly necessary to ensure ALL memory held by torch is released when the inference is done
-        # Running the inference without this results in many dangling tensors for some reason
         result_queue: Queue = Queue()
         max_tokens: int = kwargs.pop("max_tokens", 512)
         sys_prompt: str = kwargs.pop("sys_prompt", "")
@@ -428,10 +434,35 @@ class QwenVLModel(Qwen2Model):
         p.start()
         p.join()
 
-        # result_queue.get() function as a pop. Always save it to a variable or return it directly
         result = result_queue.get()
         assert isinstance(result, str), "result must be a string"
         return result
+
+    def load_model(self) -> Tuple[Any, AutoProcessor]:
+        """
+        Loads and returns the vision+text model and processor.
+        """
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
+            self.model_name, torch_dtype="auto", device_map="auto"
+        )
+        processor = AutoProcessor.from_pretrained(self.model_name)
+        return model, processor
+
+
+class QwenVLModel(VisionModel):
+    """
+    Implementation of the QwenVL model interface.
+    """
+
+    capabilities: List[str] = ["image", "text"]
+
+    def __init__(
+        self,
+        model_name: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(model_name, *args, **kwargs)
 
     def load_model(self) -> Tuple[Qwen2VLForConditionalGeneration, AutoProcessor]:
         """
@@ -447,20 +478,8 @@ class QwenVLModel(Qwen2Model):
         return model, processor
 
 
-# class QwenVL2_5Model(QwenVLModel):
-#     def load_model(self) -> Tuple[Qwen2_5_VLForConditionalGeneration, AutoProcessor]:
-#         """
-#         Loads and returns the model to make inferences on.
-#         """
-#         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-#             self.model_name, torch_dtype="auto", device_map="auto"
-#         )
-#         processor = AutoProcessor.from_pretrained(self.model_name)
-#         return model, processor
-
-
 if __name__ == "__main__":
-    model = Qwen2Model("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
+    model = TextModel("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
     sys_prompt = "You will receive a structured event log with the following columns:"
     user_prompt = "1. **ScreenID**: Identifies the group of events corresponding to a specific screen or workflow step."
-    print(model._call(user_prompt, sys_prompt=sys_prompt))
+    print(model(user_prompt, sys_prompt=sys_prompt))
