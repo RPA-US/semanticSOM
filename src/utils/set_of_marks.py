@@ -173,7 +173,9 @@ def _draw_component(
     draw_nums = ImageDraw.Draw(nums)
 
     draw_mask.polygon(
-        xy=[tuple(point) for point in compo["points"]], fill=compo_color + (50,)
+        xy=[tuple(point) for point in compo["points"]],
+        fill=compo_color + (50,),
+        outline=compo_color + (255,),
     )
 
     draw_mask.rectangle(xy=text_rectangle, fill=(0, 0, 0, 200))
