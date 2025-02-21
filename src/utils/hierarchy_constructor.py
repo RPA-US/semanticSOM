@@ -1,6 +1,7 @@
 from shapely.geometry import Polygon
 import json
 import copy
+import argparse
 
 
 def build_tree(tree: list, depth=1, text_class="Text"):
@@ -133,7 +134,7 @@ def labels_to_soms(labels: dict):
         compo["xpath"] = []
         compo["id"] = id
         compo["class"] = compo.pop("label")
-        if compo["shape_type"] == "rectangle" and len(compo["points"]) == 2:
+        if len(compo["points"]) == 2:
             x, y, x2, y2 = [coor for coords in compo["points"] for coor in coords]
             compo["points"] = [[x, y], [x2, y], [x2, y2], [x, y2]]
             compo["shape_type"] = "polygon"
@@ -208,7 +209,25 @@ def flatten_som(tree):
     return flattened
 
 
+def convert_to_som(input_file: str, output_file: str):
+    """
+    Convert a JSON file containing labels to a JSON file containing SOMs.
+
+    Args:
+        input_file (str): Path to the input JSON file.
+        output_file (str): Path to the output JSON file.
+    """
+    labels = json.load(open(input_file))
+    som = labels_to_soms(labels)
+    json.dump(som, open(output_file, "w"))
+
+
 if __name__ == "__main__":
-    lables = json.load(open("input/soms/Captura de pantalla (147).json"))
-    som = labels_to_soms(lables)
-    json.dump(som, open("input/soms/Captura de pantalla (147)_som.json", "w"))
+    parser = argparse.ArgumentParser(description="Process input and output file paths.")
+    parser.add_argument("input_file", type=str, help="Path to the input JSON file")
+    parser.add_argument("output_file", type=str, help="Path to the output JSON file")
+    args = parser.parse_args()
+
+    labels = json.load(open(args.input_file))
+    som = labels_to_soms(labels)
+    json.dump(som, open(args.output_file, "w"))
