@@ -10,6 +10,8 @@ class CFG:
     image_dir: str = f"{project_root}/input/images"
     som_dir: str = f"{project_root}/input/soms"
 
+    s2s_dataset_dir: str = f"{project_root}/input/screen2som_dataset"
+
     sqlite_db_location: str = f"{project_root}/cache.db"
 
     colnames: dict[str, str] = {
@@ -22,10 +24,11 @@ class CFG:
         "EventDescription": "EventDescription",
         "Activity": "Activity",
         "ActvityDescription": "ActvityDescription",
+        "GroundTruth": "GroundTruth",
     }
 
     prompt_config: dict[str, list[str] | str] = {
-        "technique": ["som"],  # possible values: "som", "highlight"
+        "technique": [],  # possible values: "som", "highlight"
         "crop": "parent",  # possible values: "parent", "target", "none"
     }
 
