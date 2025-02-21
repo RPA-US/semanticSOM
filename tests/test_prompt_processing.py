@@ -158,7 +158,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "Identify the element shown in the image")
+        self.assertEqual(prompt, "")
 
     @patch("src.cfg.CFG.prompt_config", new=MockCFG.som_config)
     def test_process_image_for_prompt_som_nocrop(self):
@@ -194,7 +194,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "Identify the element shown in the image")
+        self.assertEqual(prompt, "")
 
     @patch("src.cfg.CFG.prompt_config", new=MockCFG.both_config)
     def test_process_image_for_prompt_both_nocrop(self):
@@ -232,7 +232,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "Identify the element shown in the image")
+        self.assertEqual(prompt, "")
 
     @patch("src.cfg.CFG.prompt_config", new=MockCFG.coords_config)
     def test_process_image_for_prompt_coords_nocrop(self):
@@ -268,7 +268,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "Identify the element shown in the image")
+        self.assertEqual(prompt, "")
 
     def test_highlight_compo(self):
         compo = {"points": [(10, 10), (20, 10), (20, 20), (10, 20)]}

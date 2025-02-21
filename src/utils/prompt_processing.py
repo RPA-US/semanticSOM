@@ -148,7 +148,7 @@ def process_image_for_prompt(
                 crop_coords=bbox_from_object(obj=target_object),
             )
             sys_prompt = COT_ACTION_TARGET_ELEM
-            prompt = "Identify the element shown in the image"
+            prompt = ""  # Intentionally blank
         case _:
             pass
 
