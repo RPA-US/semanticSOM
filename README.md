@@ -8,6 +8,10 @@
 - [Acknowledgments](#acknowledgments)
 - [Citation](#citation)
 
+## GPU Prequisites
+
+In order to use Nvidia GPU and CUDA to run your inferences you are required to be runnning the code in a windows or linux machine and have cuda 12.4 installed on your system
+
 ## Installation
 
 1. **Install uv:**
