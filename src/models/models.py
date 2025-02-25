@@ -142,6 +142,30 @@ class ModelInterface(LLM, ABC):
 class TextModel(ModelInterface):
     """
     A model interface for text-only inference.
+
+    **Example Usage (Local Inference):**
+
+    ```python
+    from models.models import TextModel
+
+    # Using a locally loaded model
+    model = TextModel("path/to/local/text-model")
+    output = model("Hello world!", sys_prompt="Provide a short greeting")
+    print(output)
+    ```
+
+    **Example Usage (Using OpenAI API):**
+
+    ```python
+    from models.models import TextModel
+
+    # Configure for OpenAI API inference
+    model = TextModel("your-model-id")
+    model.openai_server = "https://api.openai.com/v1"
+    model.api_key = "YOUR_API_KEY"
+    output = model("Hello world!", sys_prompt="Provide a short greeting")
+    print(output)
+    ```
     """
 
     capabilities: List[str] = ["text"]
@@ -278,6 +302,30 @@ class TextModel(ModelInterface):
 class VisionModel(ModelInterface):
     """
     A model interface for vision+text inference.
+
+    **Example Usage (Local Inference):**
+
+    ```python
+    from models.models import VisionModel
+
+    # Using a locally loaded model
+    model = TextModel("hugginface/identifier")
+    output = model("Hello world!", sys_prompt="Provide a short greeting")
+    print(output)
+    ```
+
+    **Example Usage (Using OpenAI API):**
+
+    ```python
+    from models.models import VisionModel
+
+    # Configure for OpenAI API inference
+    model = TextModel("your-model-id")
+    model.openai_server = "https://api.openai.com/v1"
+    model.api_key = "YOUR_API_KEY"
+    output = model("Hello world!", sys_prompt="Provide a short greeting")
+    print(output)
+    ```
     """
 
     capabilities: List[str] = ["image", "text"]
@@ -452,6 +500,36 @@ class VisionModel(ModelInterface):
 class QwenVLModel(VisionModel):
     """
     Implementation of the QwenVL model interface.
+
+    **Example Usage (Local Inference):**
+
+    ```python
+    from models.models import QwenVLModel
+
+    # Using a locally loaded QwenVL model
+    model = QwenVLModel("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
+    image = Image.open("path/to/image.jpg")
+    output = model(
+        "Provide insights on the image", sys_prompt="Image analysis", image=image
+    )
+    print(output)
+    ```
+
+    **Example Usage (Using OpenAI API):**
+
+    ```python
+    from models.models import QwenVLModel
+
+    # Configure for OpenAI API inference
+    model = QwenVLModel("your-qwenvl-model-id")
+    model.openai_server = "https://api.openai.com/v1"
+    model.api_key = "YOUR_API_KEY"
+    image = Image.open("path/to/image.jpg")
+    output = model(
+        "Provide insights on the image", sys_prompt="Image analysis", image=image
+    )
+    print(output)
+    ```
     """
 
     capabilities: List[str] = ["image", "text"]
