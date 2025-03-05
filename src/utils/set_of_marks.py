@@ -98,6 +98,7 @@ def add_num_marks(
     if fontsize < 1:
         raise ValueError("fontsize must be greater than 0")
 
+    compos = list(filter(lambda comp: Polygon(comp["points"]).is_valid, compos))
     non_text_compos = _filter_and_sort_compos(compos)
 
     mask, nums = _prepare_layers(image.size)

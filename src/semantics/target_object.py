@@ -118,41 +118,46 @@ def semantize_targets(
     assert isinstance(cache, Cache), "cache must be an instance of Cache"
     event_target_col: list[str] = []
 
-    for row in event_log.iter_rows(named=True):
-        screenshot: Image.Image = Image.open(
-            fp=f"{CFG.image_dir}/{row[CFG.colnames['Screenshot']]}"
-        )
-        som: dict = json.load(
-            open(
-                file=f"{CFG.som_dir}/{row[CFG.colnames['Screenshot']].split('.')[0]}_som.json"
+    try:
+        for row in event_log.iter_rows(named=True):
+            screenshot: Image.Image = Image.open(
+                fp=f"{CFG.image_dir}/{row[CFG.colnames['Screenshot']]}"
             )
-        )
-
-        coords: Coords
-        if row[CFG.colnames["Coords"]] and row[CFG.colnames["Coords"]] != "":
-            coords = Coords(
-                *map(lambda x: int(x), row[CFG.colnames["Coords"]].split(","))
+            som: dict = json.load(
+                open(
+                    file=f"{CFG.som_dir}/{row[CFG.colnames['Screenshot']].split('.')[0]}_som.json"
+                )
             )
-        else:  # Keyboard event most probably. No way to know at this stage the target element
-            event_target_col.append("")
-            continue
 
-        if cache_hit := cache.in_cache(
-            img=screenshot
-        ):  # Image already processed. We try to get the target element from the cache
-            if coords in cache_hit.keys():  # type: ignore
-                # TODO: Element might be some pixels off, we need a thresshold
-                event_target_col.append(cache_hit[coords])  # type: ignore
+            coords: Coords
+            if row[CFG.colnames["Coords"]] and row[CFG.colnames["Coords"]] != "":
+                coords = Coords(
+                    *map(lambda x: int(x), row[CFG.colnames["Coords"]].split(","))
+                )
+            else:  # Keyboard event most probably. No way to know at this stage the target element
+                event_target_col.append("")
                 continue
 
-        event_target_col.append(
-            identify_target_element(
-                screenshot=screenshot, som=som, coords=coords, model=model
-            )
-        )
+            if (
+                cache_hit := cache.in_cache(img=screenshot)
+            ):  # Image already processed. We try to get the target element from the cache
+                if coords in cache_hit.keys():  # type: ignore
+                    # TODO: Element might be some pixels off, we need a thresshold
+                    event_target_col.append(cache_hit[coords])  # type: ignore
+                    continue
 
-        cache.update_cache(
-            img=screenshot, coords=coords, target_element=event_target_col[-1]
+            event_target_col.append(
+                identify_target_element(
+                    screenshot=screenshot, som=som, coords=coords, model=model
+                )
+            )
+
+            cache.update_cache(
+                img=screenshot, coords=coords, target_element=event_target_col[-1]
+            )
+    except Exception as e:  # early stopping if an error occurs
+        print(
+            f"The following error ocurred while extracting object semantics. Stopping early: {e}"
         )
 
     event_log = event_log.with_columns(EventTarget=pl.Series(values=event_target_col))
@@ -163,8 +168,8 @@ def semantize_targets(
 
 if __name__ == "__main__":
     event_log: pl.DataFrame = pl.read_csv(
-        source=f"{CFG.project_root}/input/phase_2/moodle.csv"
+        source=f"{CFG.project_root}/input/eval/eval.csv"
     )
     model = QwenVLModel(model_name="Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4")
     event_log = semantize_targets(event_log=event_log, cache=Cache(), model=model)
-    event_log.write_csv(file=f"{CFG.project_root}/output/email.csv")
+    event_log.write_csv(file=f"{CFG.project_root}/output/eval.csv")
