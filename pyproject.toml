@@ -23,6 +23,8 @@ dependencies = [
     "opencv-python>=4.11.0.86",
     "shapely>=2.0.7",
     "openai>=1.63.2",
+    "spacy>=3.8.4",
+    "sentence-transformers>=3.4.1",
 ]
 
 [dependency-groups]

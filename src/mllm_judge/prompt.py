@@ -32,12 +32,12 @@ Your task is to assess the AI assistant's response based on how effectively it a
 Both the assistant response and ground truth are meant to represent a GUI object short description including type and purpose.
 
 Here is the detailed scoring rubric for evaluating the quality of responses from AI assistants:
-Wrong (1): The response significantly deviates from the user's instruction and fails to address the query effectively. It shows a lack of relevance, accuracy, and comprehensiveness. (i.e. Object determined incorrectly)
-Average (2): The response aligns with the user's instruction and gives an answer that only includes information about the type of element, but which could apply to any generic element.
-Good (3): The response algin with the user's instruction and gives an answer that is similar to the ground truth. It includes correct details about the object but does not include details about it's semantic purpose. (i.e. Text inside a component but not understandable on it's own)
-Excellent (4): The answer quality is excellent, demonstrating a deep understanding of the user's inquiry and providing a comprehensive, accurate, and relevant response. It does not need to match the ground truth perfectly but it needs to convey the same message (i.e. a description that captures the essence of the element to be described, to the point where event without the image it can be understood what purpose the element serves)
+Wrong (0): The response significantly deviates from the user's instruction and fails to address the query effectively. It shows a lack of relevance, accuracy, and comprehensiveness. (i.e. Object determined incorrectly)
+Average (1): The response aligns with the user's instruction and gives an answer that only includes information about the type of element, but which could apply to any generic element.
+Good (2): The response algin with the user's instruction and gives an answer that is similar to the ground truth. It includes correct details about the object but it not accurate regarding it's semantic purpose. (e.g. Text inside a component but not understandable on it's own)
+Excellent (3): The answer quality is excellent, demonstrating a deep understanding of the user's inquiry and providing a comprehensive, accurate, and relevant response. It does not need to match the ground truth perfectly but it needs to convey the same message (i.e. a description that captures the essence of the element to be described, to the point where event without the image it can be understood what purpose the element serves)
 
-Use "[[1]]", "[[2]]", "[[3]]", "[[4]]" to indicate your evaluate score in the key 'Judgement'.
+Use "[[0]]", "[[1]]", "[[2]]", "[[3]]" to indicate your evaluate score in the key 'Judgement'.
 """,
             "batch": """You will be presented with several responses from different assistants to the same user instruction.
 Your task is to assess and  compare these responses based on how effectively they adhere to the user's original instruction and how aptly they address the user's inquiry.

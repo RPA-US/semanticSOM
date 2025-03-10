@@ -37,6 +37,12 @@ class ModelInterface(LLM, ABC):
     openai_server: Optional[str] = None
     api_key: Optional[str] = None
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._loaded: bool = False
+        self._loaded_model: Optional[Any] = None
+        self._loaded_processor: Optional[Any] = None
+
     @property
     def _llm_type(self) -> str:
         return self.__class__.__name__
@@ -54,6 +60,20 @@ class ModelInterface(LLM, ABC):
             "top_p": self.top_p,
             "history_len": self.history_len,
         }
+
+    @property
+    def loaded(self) -> bool:
+        return self._loaded
+
+    def manual_load(self) -> None:
+        if not self._loaded:
+            self._loaded_model, self._loaded_processor = self.load_model()
+            self._loaded = True
+
+    def manual_unload(self) -> None:
+        if self._loaded:
+            self.unload(self._loaded_model, self._loaded_processor)
+            self._loaded = False
 
     @abstractmethod
     def _call(
@@ -180,7 +200,7 @@ class TextModel(ModelInterface):
         user_prompt: str,
         max_tokens: int = 512,
         **kwargs: Any,
-    ) -> None:
+    ) -> Optional[str]:
         """
         Performs an inference using a text-only model.
         """
@@ -206,7 +226,6 @@ class TextModel(ModelInterface):
                 .choices[0]
                 .message.content
             )
-            kwargs["result_queue"].put(processed_output_text)
         else:
             if sys_prompt:
                 messages.append({"role": "system", "content": sys_prompt})
@@ -214,7 +233,11 @@ class TextModel(ModelInterface):
             processed_output_text = self._local_inference(
                 messages, max_tokens=max_tokens, **kwargs
             )
+        if "result_queue" in kwargs:
             kwargs["result_queue"].put(processed_output_text)
+            return None
+        else:
+            return processed_output_text
 
     def _local_inference(
         self,
@@ -222,7 +245,12 @@ class TextModel(ModelInterface):
         max_tokens: int = 512,
         **kwargs: Any,
     ) -> str:
-        model, processor = self.load_model()
+        if self.loaded:
+            model: AutoModelForCausalLM
+            processor: AutoProcessor
+            model, processor = self._loaded_model, self._loaded_processor
+        else:
+            model, processor = self.load_model()
 
         text: str = processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -269,25 +297,28 @@ class TextModel(ModelInterface):
         """
         assert isinstance(prompt, str), "prompt must be a string"
         assert stop is None or isinstance(stop, list), "stop must be None or a list"
-
-        result_queue: Queue = Queue()
         max_tokens: int = kwargs.pop("max_tokens", 512)
         sys_prompt: str = kwargs.pop("sys_prompt", "")
 
-        kwargs["result_queue"] = result_queue
-        p = Process(
-            target=self.inference,
-            args=(sys_prompt, prompt, max_tokens),
-            kwargs=kwargs,
-        )
-        p.start()
-        p.join()
+        if self.loaded:
+            result = self.inference(sys_prompt, prompt, max_tokens, **kwargs)
+        else:
+            result_queue: Queue = Queue()
 
-        result = result_queue.get()
+            kwargs["result_queue"] = result_queue
+            p = Process(
+                target=self.inference,
+                args=(sys_prompt, prompt, max_tokens),
+                kwargs=kwargs,
+            )
+            p.start()
+            p.join()
+
+            result = result_queue.get()
         assert isinstance(result, str), "result must be a string"
         return result
 
-    def load_model(self) -> Tuple[Any, AutoProcessor]:
+    def load_model(self) -> Tuple[AutoModelForCausalLM, AutoProcessor]:
         """
         Loads and returns the text-only model and processor.
         """
@@ -340,7 +371,7 @@ class VisionModel(ModelInterface):
         user_prompt: str,
         max_tokens: int = 512,
         **kwargs: Any,
-    ) -> None:
+    ) -> Optional[str]:
         """
         Performs an inference using a vision+text model.
         """
@@ -388,7 +419,6 @@ class VisionModel(ModelInterface):
                 .choices[0]
                 .message.content
             )
-            kwargs["result_queue"].put(processed_output_text)
         else:
             if sys_prompt:
                 messages.append({"role": "system", "content": sys_prompt})
@@ -411,7 +441,11 @@ class VisionModel(ModelInterface):
             processed_output_text = self._local_inference(
                 messages, max_tokens=max_tokens, **kwargs
             )
+        if "result_queue" in kwargs:
             kwargs["result_queue"].put(processed_output_text)
+            return None
+        else:
+            return processed_output_text
 
     def _local_inference(
         self,
@@ -419,7 +453,12 @@ class VisionModel(ModelInterface):
         max_tokens: int = 512,
         **kwargs: Any,
     ) -> str:
-        model, processor = self.load_model()
+        if self.loaded:
+            model: Qwen2VLForConditionalGeneration
+            processor: AutoProcessor
+            model, processor = self._loaded_model, self._loaded_processor
+        else:
+            model, processor = self.load_model()
 
         text: str = processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -468,25 +507,28 @@ class VisionModel(ModelInterface):
         """
         assert isinstance(prompt, str), "prompt must be a string"
         assert stop is None or isinstance(stop, list), "stop must be None or a list"
-
-        result_queue: Queue = Queue()
         max_tokens: int = kwargs.pop("max_tokens", 512)
         sys_prompt: str = kwargs.pop("sys_prompt", "")
 
-        kwargs["result_queue"] = result_queue
-        p = Process(
-            target=self.inference,
-            args=(sys_prompt, prompt, max_tokens),
-            kwargs=kwargs,
-        )
-        p.start()
-        p.join()
+        if self.loaded:
+            result = self.inference(sys_prompt, prompt, max_tokens, **kwargs)
+        else:
+            result_queue: Queue = Queue()
 
-        result = result_queue.get()
+            kwargs["result_queue"] = result_queue
+            p = Process(
+                target=self.inference,
+                args=(sys_prompt, prompt, max_tokens),
+                kwargs=kwargs,
+            )
+            p.start()
+            p.join()
+
+            result = result_queue.get()
         assert isinstance(result, str), "result must be a string"
         return result
 
-    def load_model(self) -> Tuple[Any, AutoProcessor]:
+    def load_model(self) -> Tuple[Qwen2VLForConditionalGeneration, AutoProcessor]:
         """
         Loads and returns the vision+text model and processor.
         """
@@ -558,6 +600,8 @@ class QwenVLModel(VisionModel):
 
 if __name__ == "__main__":
     model = TextModel("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
-    sys_prompt = "You will receive a structured event log with the following columns:"
-    user_prompt = "1. **ScreenID**: Identifies the group of events corresponding to a specific screen or workflow step."
-    print(model(user_prompt, sys_prompt=sys_prompt))
+    model.manual_load()
+    sys_prompt = "You are a helpful assistant"
+    print(model("1+1", sys_prompt=sys_prompt))
+    print(model("1+2", sys_prompt=sys_prompt))
+    model.manual_unload()
