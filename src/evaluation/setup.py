@@ -10,32 +10,49 @@ from src.cfg import CFG
 import polars as pl
 from timeit import default_timer as timer
 import tkinter as tk
-from PIL import Image
+from collections import Counter
+from PIL import Image, ImageDraw
 from PIL import ImageTk as itk
 from typing import Any
+# from src.utils.images import ImageCache
 
 from src.utils.hierarchy_constructor import convert_to_som
 
+_LIMIT_PER_DENSITY = 15
+
 _INTERACTABLE_ELEMENT_CLASSES = [
-    "ButtonSq",
-    "ButtonPill",
-    "ButtonCirc",
-    "Icon",
-    "WebIcon",
-    "Switch",
-    "CheckboxChecked",
-    "CheckboxUnchecked",
-    "RadiobtnSelected",
-    "RadiobtnUnselected",
+    "BtnSq",
+    "BtnPill",
+    "BtnCirc",
+    # "Icon",
+    # "WebIcon",
+    # "Switch",
+    # "CheckboxChecked",
+    # "CheckboxUnchecked",
+    # "RadiobtnSelected",
+    # "RadiobtnUnselected",
     "TextInput",
-    "Dropdown",
-    "Link",
-    "Image",
-    "TabActive",
-    "TabInactive",
-    "BrowserUrlInput",
-    "Scrollbar",
+    # "Dropdown",
+    # "Link",
+    # "Image",
+    # "BrowserUrlInput",
 ]
+
+_CLASS_MAPPING = {
+    "BtnSq": "Button",
+    "BtnPill": "Button",
+    "BtnCirc": "Button",
+    "Icon": "Icon",
+    "WebIcon": "Icon",
+    "Switch": "Switch",
+    "CheckboxChecked": "Checkbox",
+    "CheckboxUnchecked": "Checkbox",
+    "RadiobtnSelected": "Radio Button",
+    "RadiobtnUnselected": "Radio Button",
+    "TextInput": "Text Input",
+    "Dropdown": "Dropdown",
+    "Link": "Link",
+}
 
 
 def _preprocess_dataset() -> tuple[list[str], list[str]]:
@@ -49,14 +66,18 @@ def _preprocess_dataset() -> tuple[list[str], list[str]]:
     imgs: list[str] = []
     for file in os.listdir(CFG.s2s_dataset_dir):
         if file.endswith(".json"):
-            convert_to_som(
-                f"{CFG.s2s_dataset_dir}/{file}",
-                f"{CFG.som_dir}/{file.replace('.json', '_som.json')}",
-            )
+            som_file = f"{CFG.som_dir}/{file.replace('.json', '_som.json')}"
+            if not os.path.exists(som_file):
+                convert_to_som(
+                    f"{CFG.s2s_dataset_dir}/{file}",
+                    som_file,
+                )
             soms.append(file.replace(".json", "_som.json"))
         elif file.endswith(".png"):
-            shutil.copy(f"{CFG.s2s_dataset_dir}/{file}", f"{CFG.image_dir}/{file}")
-            imgs.append(f"{CFG.image_dir}/{file}")
+            img_file = f"{CFG.image_dir}/{file}"
+            if not os.path.exists(img_file):
+                shutil.copy(f"{CFG.s2s_dataset_dir}/{file}", img_file)
+            imgs.append(img_file)
     return soms, imgs
 
 
@@ -110,13 +131,16 @@ class LabelingInterface:
             CFG.colnames["EventType"]: pl.Utf8,
             CFG.colnames["Coords"]: pl.Utf8,
             CFG.colnames["GroundTruth"]: pl.Utf8,
+            "Depth": pl.Int64,
+            "Class": pl.Utf8,
+            "Density": pl.Utf8,
         }
     )
 
     def __init__(self) -> None:
         pass
 
-    def get_component_label(self, img_path: str, compo: dict) -> None:
+    def get_component_label(self, img_path: str, compo: dict, img_density: str) -> bool:
         """
         Build the labeling interface. This labeling interface is split into two sections: the left section displays the screenshot, and the right section displays the interactable elements.
         The user will be prompted to label each interactable element with a ground truth value.
@@ -132,8 +156,12 @@ class LabelingInterface:
             "compo must be a dictionary containing 'points' key"
         )
 
+        labeled_component = False
+
         def __submit():
-            self._create_df_entry(img_name, compo, entry.get())
+            self._create_df_entry(img_name, compo, entry.get(), img_density)
+            nonlocal labeled_component
+            labeled_component = True
             root.destroy()
 
         img = Image.open(img_path)
@@ -149,6 +177,9 @@ class LabelingInterface:
         # Screenshot
         left_master = tk.Frame(root)
         left_master.pack(side="left")
+
+        draw = ImageDraw.Draw(img)
+        draw.rectangle(compo_bbox, outline="red", width=3)
 
         aspect_ratio = img.width / img.height
         new_dims = (
@@ -203,11 +234,15 @@ class LabelingInterface:
 
         root.mainloop()
 
+        # return wether the user labeled the component or not
+        return labeled_component
+
     def _create_df_entry(
         self,
         img_name: str,
         compo: dict,
         label: str,
+        img_density: str,
     ) -> None:
         """
         Create a DataFrame entry for the labeled interactable element.
@@ -235,6 +270,9 @@ class LabelingInterface:
                 "Coords"
             ]: f"{round(compo['centroid'][0])},{round(compo['centroid'][1])}",
             CFG.colnames["GroundTruth"]: label,
+            "Depth": compo["depth"],
+            "Class": _CLASS_MAPPING[compo["class"]],
+            "Density": img_density,
         }
         self.dataframe = pl.concat(
             [self.dataframe, pl.DataFrame(entry)], how="vertical"
@@ -245,6 +283,7 @@ if __name__ == "__main__":
     """
     Main function to preprocess the dataset and prompt the user for labels.
     """
+    # image_cache = ImageCache(":memory:")
     labeling_interface = LabelingInterface()
 
     timer_start = timer()
@@ -252,10 +291,35 @@ if __name__ == "__main__":
     timer_end = timer()
     print(f"Dataset preprocessed in {timer_end - timer_start} seconds.")
 
+    compo_per_density_counter: dict[str, Counter] = {
+        density: Counter()
+        for density in ["Low Density", "Medium Density", "High Density"]
+    }
     for img_path, som in zip(imgs, soms):
         som_dict: dict[str, Any] = json.load(open(f"{CFG.som_dir}/{som}"))
         interactable_elements = _get_interactable_elements(som_dict)
+        img_density = som_dict["DensityLevel"]
+
         for compo in interactable_elements:
-            labeling_interface.get_component_label(img_path, compo)
+            if (
+                compo_per_density_counter[img_density][_CLASS_MAPPING[compo["class"]]]
+                >= _LIMIT_PER_DENSITY
+            ):
+                continue
+
+            # if image_cache.in_cache(
+            #     compo_crop := Image.open(img_path).crop(_bbox_from_object(compo))
+            # ):
+            #     continue
+            labeled = labeling_interface.get_component_label(
+                img_path, compo, img_density
+            )
+            # image_cache.update_cache(compo_crop)
+
+            if labeled:
+                compo_per_density_counter[img_density][
+                    _CLASS_MAPPING[compo["class"]]
+                ] += 1
+
     labeling_interface.dataframe.write_csv("input/eval/eval.csv")
     print("Labels saved successfully.")
