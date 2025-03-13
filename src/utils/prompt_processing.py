@@ -128,10 +128,13 @@ def process_image_for_prompt(
 
     match CFG.prompt_config["crop"]:
         case "parent":
-            parent_id = target_object["xpath"][-2]
-            parent_object = next(
-                filter(lambda compo: compo["id"] == parent_id, som["compos"]), None
-            )
+            if len(target_object["xpath"]) > 1:
+                parent_id = target_object["xpath"][-2]
+                parent_object = next(
+                    filter(lambda compo: compo["id"] == parent_id, som["compos"]), None
+                )
+            else:
+                parent_object = None
             image, som["compos"] = (
                 crop_and_adjust_bbox(
                     image=image,

@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont
 from shapely import Polygon, MultiPolygon
 from shapely.algorithms import polylabel
+from typing import Optional
 import numpy as np
 import copy
 
@@ -98,7 +99,13 @@ def add_num_marks(
     if fontsize < 1:
         raise ValueError("fontsize must be greater than 0")
 
-    compos = list(filter(lambda comp: Polygon(comp["points"]).is_valid, compos))
+    compos = list(
+        filter(
+            lambda comp: Polygon(comp["points"]).is_valid
+            and not Polygon(comp["points"]).is_empty,
+            compos,
+        )
+    )
     non_text_compos = _filter_and_sort_compos(compos)
 
     mask, nums = _prepare_layers(image.size)
@@ -111,9 +118,10 @@ def add_num_marks(
             compo, font, lower_compos
         )
 
-        _draw_component(
-            mask, nums, compo, text_location, text_rectangle, compo_color, font
-        )
+        if text_location is not None:
+            _draw_component(
+                mask, nums, compo, text_location, text_rectangle, compo_color, font
+            )
 
     image = Image.alpha_composite(image.convert("RGBA"), mask.convert("RGBA"))
     image = Image.alpha_composite(image, nums).convert("RGB")
@@ -140,9 +148,12 @@ def _filter_and_sort_compos(compos: list[dict]) -> list[dict]:
     for i, compo in enumerate(temp_compos):
         for other_compo in temp_compos[:i]:
             if compo["points"] == other_compo["points"]:
-                if len(compo["xpath"]) < len(other_compo["xpath"]):
+                if (
+                    len(compo["xpath"]) < len(other_compo["xpath"])
+                    and compo in non_text_compos
+                ):
                     non_text_compos.remove(compo)
-                else:
+                elif other_compo in non_text_compos:
                     non_text_compos.remove(other_compo)
                 break
 
@@ -198,13 +209,15 @@ def _compute_text_location(
     lower_compos: list = [],
     surround_factor: float = 0.6,
     allowed_overshadowing: float = 0.10,
-) -> tuple[tuple[float, float], list[tuple[float, float]]]:
+) -> tuple[Optional[tuple[float, float]], Optional[list[tuple[float, float]]]]:
     """
     Computes the location and rectangle where the text will be drawn.
     """
     compo_mask = Polygon(compo["points"])
     for lower_compo in lower_compos:
         compo_mask = compo_mask.difference(Polygon(lower_compo["points"]))
+    if compo_mask.is_empty:
+        return None, None
 
     _, _, txt_w, txt_h = font.getbbox(str(compo["id"]))
     text_location, text_rectangle = _move_text_to_free_space(
