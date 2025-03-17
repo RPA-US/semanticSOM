@@ -128,7 +128,7 @@ def benchmark(model, judge_mode, setting, api, image_dir, temperature, top_p):
         for line in json_file:
             items.append(json.loads(line))
 
-    output_path: str = CFG.eval_config["output_path"]
+    output_path = CFG.eval_config["output_path"]
     folder_path = os.path.dirname(output_path)
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)

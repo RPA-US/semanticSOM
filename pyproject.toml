@@ -25,6 +25,7 @@ dependencies = [
     "openai>=1.63.2",
     "spacy>=3.8.4",
     "sentence-transformers>=3.4.1",
+    "statsmodels>=0.14.4",
 ]
 
 [dependency-groups]
