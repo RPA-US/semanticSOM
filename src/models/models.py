@@ -267,7 +267,7 @@ class TextModel(ModelInterface):
 
         inputs = processor(
             text=[text],
-            padding=True,
+            padding=True if "padding" not in kwargs else kwargs["padding"],
             return_tensors="pt",
         )
         inputs = inputs.to("cuda")
@@ -340,8 +340,16 @@ class TextModel(ModelInterface):
         Loads and returns the text-only model and processor.
         """
         assert isinstance(self.model_name, str), "model_name must be a string"
+        # Check if we have more than one GPU
+        # if torch.cuda.device_count() > 1:
+        #     rank = int(os.environ["RANK"])
+        #     device = torch.device(f"cuda:{rank}")
+        #     torch.cuda.set_device(device)
+        #     torch.distributed.init_process_group("nccl", device_id=device)
         model = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype="auto", device_map="auto"
+            self.model_name,
+            torch_dtype="auto",
+            device_map="auto",
         )
         processor = AutoProcessor.from_pretrained(self.model_name)
         return model, processor
@@ -586,12 +594,15 @@ class InternVLModel(VisionModel):
         messages: List[Dict[str, Any]] = []
         processed_output_text: str
         if self.openai_server:
-            if sys_prompt:
-                messages.append({"role": "system", "content": sys_prompt})
+            # if sys_prompt:
+            #     # messages.append({"role": "system", "content": sys_prompt}) # Not all models support system messages
+            #     messages.append({"role": "user", "content": sys_prompt})
+            sys_prompt = sys_prompt if sys_prompt else "You are a helpful assistant"
             messages.append(
                 {
                     "role": "user",
                     "content": [
+                        {"type": "text", "text": f"{sys_prompt}<image>"},
                         *[
                             {
                                 "type": t,

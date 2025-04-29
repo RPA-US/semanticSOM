@@ -12,7 +12,7 @@ from PIL import Image
 from timeit import default_timer as timer
 
 from src.cfg import CFG
-from src.models.models import QwenVLModel
+from src.models.models import InternVLModel
 from src.utils.prompt_processing import Coords, process_image_for_prompt
 
 
@@ -113,7 +113,11 @@ def identify_target_element(
 
 
 def semantize_targets(
-    event_log: pl.DataFrame, cache: Cache, model: Any, starting_point: int
+    event_log: pl.DataFrame,
+    cache: Cache,
+    model: Any,
+    starting_point: int,
+    checkpoint_csv: str,
 ) -> pl.DataFrame:
     """
     Semantizes the targets in the event log.
@@ -122,6 +126,8 @@ def semantize_targets(
         event_log (pl.DataFrame): The event log to process.
         cache (Cache): The cache to use for storing processed images.
         model (Any): The model to use for identification.
+        starting_point (int): The row to start processing from.
+        checkpoint_csv (str): The path to the checkpoint CSV.
 
     Returns:
         pl.DataFrame: The semantized event log.
@@ -168,6 +174,8 @@ def semantize_targets(
             target_element, time = identify_target_element(
                 screenshot=screenshot, som=som, coords=coords, model=model
             )
+            event_target_col.append(target_element)
+            times.append(time)
             print(target_element)
             event_target_col.append(target_element)
             times.append(time)
@@ -182,9 +190,7 @@ def semantize_targets(
                     EventTarget=pl.Series(values=event_target_col),
                     Time=pl.Series(values=times),
                 )
-                cut_event_log.write_csv(
-                    file=f"{CFG.project_root}/output/eval_checkpoint.csv"
-                )
+                cut_event_log.write_csv(file=checkpoint_csv)
     except Exception:  # early stopping if an error occurs
         print(
             f"The following error ocurred while extracting object semantics. Stopping early: {traceback.format_exc()}"
@@ -206,25 +212,31 @@ def semantize_targets(
 
 def run_semantization(model, batch_name) -> None:
     starting_point = 0
-    # if os.path.exists(f"{CFG.project_root}/output/eval_checkpoint.csv"):
-    #     event_log: pl.DataFrame = pl.read_csv(
-    #         source=f"{CFG.project_root}/output/eval_checkpoint.csv"
-    #     )
-    #     starting_point = len(event_log.rows())
-    #     print("Resuming from checkpoint at row ", starting_point)
-    event_log: pl.DataFrame = pl.read_csv(
-        source=f"{CFG.project_root}/input/eval/eval.csv"
-    )
+    checkpoint_csv = f"{CFG.project_root}/output/eval_checkpoint_{batch_name}.csv"
+    event_log: pl.DataFrame
+    if os.path.exists(checkpoint_csv):
+        event_log = pl.read_csv(source=checkpoint_csv)
+        starting_point = len(event_log.rows())
+        print("Resuming from checkpoint at row ", starting_point)
+    else:
+        event_log = pl.read_csv(source=f"{CFG.project_root}/input/eval/eval.csv")
     # model = Qwen2_5VLModel(model_name="Qwen/Qwen2.5-VL-72B-Instruct-AWQ")
-    event_log = semantize_targets(
-        event_log=event_log, cache=Cache(), model=model, starting_point=starting_point
+    enriched_event_log = semantize_targets(
+        event_log=event_log,
+        cache=Cache(),
+        model=model,
+        starting_point=starting_point,
+        checkpoint_csv=checkpoint_csv,
     )
-    event_log.write_csv(file=f"{CFG.project_root}/output/eval_{batch_name}.csv")
-    os.remove(f"{CFG.project_root}/output/eval_checkpoint.csv")
+    enriched_event_log.write_csv(
+        file=f"{CFG.project_root}/output/eval_{batch_name}.csv"
+    )
+    if os.path.exists(checkpoint_csv):
+        os.remove(checkpoint_csv)
 
 
 if __name__ == "__main__":
-    model = QwenVLModel(model_name="bytedance-research/UI-TARS-2B-SFT")
+    model = InternVLModel(model_name="OpenGVLab/InternVL2_5-38B")
     model.manual_load()
     run_semantization(model, "test")
     model.manual_unload()

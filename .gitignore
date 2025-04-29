@@ -8,9 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+venv
 
 # Experiment files
 input/
 output/
 cache.db
 .coverage
+arial.ttf

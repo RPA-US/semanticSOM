@@ -2,18 +2,27 @@ import polars as pl
 import json
 import re
 
+from tqdm import tqdm
 from timeit import default_timer as timer
 
 from src.models.models import TextModel
 
-from src.semantics.prompts import NAIVE_ACTIVITY_LABELING
+from src.semantics.prompts import (
+    NAIVE_ACTIVITY_LABELING,
+    NO_COT_NAIVE_ACTIVITY_LABELING,
+)
+
+from src.cfg import CFG
+
+from PIL import Image
 
 
-def main() -> None:
+def main(model, batch_name, cot, **kwargs) -> None:
     """
     Main function to run the semantics enrichment.
     """
-    model = TextModel("Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4")
+    model.manual_load()
+
     event_log: pl.DataFrame = pl.read_csv(
         source="input/phase_3/eval.csv", separator=";"
     )
@@ -24,7 +33,7 @@ def main() -> None:
 
     activities = event_log.group_by("ScreenID")
 
-    for _, group_df in activities:
+    for _, group_df in tqdm(activities, desc="Processing activities"):
         events_list = []
         for row in group_df.rows(named=True):
             event = {
@@ -37,11 +46,22 @@ def main() -> None:
         input_events = json.dumps(events_list, sort_keys=True, indent=4)
         prompt = f"\nGiven the following events, label the activity:\n {input_events}"
 
+        if "image" in model.capabilities:
+            image = Image.open(f"{CFG.image_dir}/{group_df['Screenshot'][0]}")
+
+        sys_prompt = NAIVE_ACTIVITY_LABELING if cot else NO_COT_NAIVE_ACTIVITY_LABELING
+
         start = timer()
-        model_output: str = model(prompt=prompt, sys_prompt=NAIVE_ACTIVITY_LABELING)
+        model_output: str = ""
+        if "image" in model.capabilities:
+            model_output = model(
+                prompt=prompt, sys_prompt=sys_prompt, image=image, **kwargs
+            )
+        else:
+            model_output = model(prompt=prompt, sys_prompt=sys_prompt, **kwargs)
         end = timer()
         time_taken = end - start
-        assert isinstance(model_output, str), "model_output must be a string"
+        print(f"{model_output}")
 
         respose = "<error> No response from model"
         if (
@@ -59,8 +79,24 @@ def main() -> None:
 
         res_log = res_log.vstack(group_df)
 
-    res_log.write_csv("output/phase_3/eval_semantics.csv")
+    model.manual_unload()
+
+    res_log.sort(by="ScreenID").write_csv(f"output/phase_3/eval_{batch_name}.csv")
 
 
 if __name__ == "__main__":
-    main()
+    # print("Using Athene-V2-Chat")
+    # model = TextModel("Nexusflow/Athene-V2-Chat")
+    # main(model, "Athene-V2-Chat", True)
+
+    # print("Using Athene-70B")
+    # model = TextModel("Nexusflow/Athene-70B")
+    # main(model, "Athene-70B", True, padding=False)
+
+    # print("Using Qwen-72B-Instruct")
+    # model = TextModel("Qwen/Qwen2.5-72B-Instruct")
+    # main(model, "Qwen2.5-72B-Instruct", True)
+
+    print("Using Llama-3.1-Nemotron-70B-Instruct-HF")
+    model = TextModel("nvidia/Llama-3.1-Nemotron-70B-Instruct-HF")
+    main(model, "Llama-3.1-Nemotron-70B-Instruct-HF", True, padding=False)

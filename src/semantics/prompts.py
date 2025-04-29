@@ -20,14 +20,15 @@ You will receive a structured json with the following format:
 Follow these guidelines:
 1. Examine the provided events carefully to understand the overall context.
 2. Ensure that the final activity label you provide is concise and descriptive.
-3. Format the final activity label using the special tokens `<|activity_label|>` and `<|end_activity_label|>`.
+3. Format your thought process using the special tokens `<|reasoning_begin|>` and `<|reasoning_end|>`.
+4. Format the final activity label using the special tokens `<|activity_label|>` and `<|end_activity_label|>`.
 
 ### Example Activity Labels:
-- <|activity_label|>Gmail User Login<|end_activity_label|>
-- <|activity_label|>Amazon Product Search<|end_activity_label|>
-- <|activity_label|>Customer Selection<|end_activity_label|>
-- <|activity_label|>Customer Deletion<|end_activity_label|>
-- <|activity_label|>Post Message<|end_activity_label|>
+- <|activity_label|>User login<|end_activity_label|>
+- <|activity_label|>Search clothing products<|end_activity_label|>
+- <|activity_label|>Select customer<|end_activity_label|>
+- <|activity_label|>Delete customer profile<|end_activity_label|>
+- <|activity_label|>Post good morning message<|end_activity_label|>
 
 ### Example Output:
 [Free space for the model to reason and debate]
@@ -56,8 +57,11 @@ You will receive a structured json with the following format:
 
 Before providing your final answer, answer the following questions in order:
 1. What are the primary target elements of the events?
-2. What are the primary actions performed by the events?
-3. What acivity can be inferred from the events?
+2. How does the user interact with those elements? What does it suggest?
+3. How do the different events relate to each other in the context of the activity?
+4. What kind of application or system is being possibly used?
+5. Are there any specific actions or sequences that stand out as significant in the context of the activity?
+6. What type of activities could be inferred from the events?
 
 ### Guidelines
 
@@ -68,17 +72,21 @@ Follow these guidelines:
 4. Format the final activity label using the special tokens `<|activity_label|>` and `<|end_activity_label|>`.
 
 ### Example Activity Labels:
-- <|activity_label|>Gmail User Login<|end_activity_label|>
-- <|activity_label|>Amazon Product Search<|end_activity_label|>
-- <|activity_label|>Customer Selection<|end_activity_label|>
-- <|activity_label|>Customer Deletion<|end_activity_label|>
-- <|activity_label|>Post Message<|end_activity_label|>
+- <|activity_label|>User login<|end_activity_label|>
+- <|activity_label|>Search clothing products<|end_activity_label|>
+- <|activity_label|>Select customer<|end_activity_label|>
+- <|activity_label|>Delete customer profile<|end_activity_label|>
+- <|activity_label|>Post good morning message<|end_activity_label|>
 
 ### Example Output:
 <|reasoning_begin|>
 1. The primary target elements are ...
-2. The primary actions performed are ...
-3. The activity inferred from the events is ...
+2. The user interacts with those elements by ...
+3. The different events relate to each other by ...
+4. The possible applications or systems being used are ...
+5. The specific actions or sequences that stand out are ...
+6. The activities that could be inferred from the events are ...
+7. <free reasoning section>
 <|reasoning_end|>
 
 <|activity_label|><identified element><|end_activity_label|>

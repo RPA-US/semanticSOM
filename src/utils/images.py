@@ -1,12 +1,6 @@
-from PIL import Image
+from PIL import Image, ImageFile
 from io import BytesIO
 import base64
-import sqlite3
-import sqlite_vec
-from transformers import CLIPProcessor, CLIPModel
-import torch
-from src.cfg import CFG
-import struct
 
 
 # Convert Image to Base64
@@ -36,7 +30,7 @@ def resize_img(image):
 
 
 # Convert Base64 to Image
-def b64_2_img(data):
+def b64_2_img(data) -> ImageFile:
     buff = BytesIO(base64.b64decode(data))
     return Image.open(buff)
 
@@ -65,88 +59,3 @@ def add_padding(image, horizontal_padding, vertical_padding):
     padded_image.paste(image, (horizontal_padding, vertical_padding))
 
     return padded_image
-
-
-class ImageCache:
-    """
-    A class to handle caching of processed images.
-    """
-
-    img_size = (224, 224)  # Standard size for CLIP
-
-    def __init__(self, location: str = CFG.sqlite_db_location) -> None:
-        """
-        Initializes the Cache class and sets up the SQLite database connection.
-        """
-        # Instantiate db if not exists
-        self.conn: sqlite3.Connection = sqlite3.connect(database=location)
-        self.conn.enable_load_extension(True)
-        sqlite_vec.load(conn=self.conn)
-        self.conn.enable_load_extension(False)
-        self.cursor: sqlite3.Cursor = self.conn.cursor()
-
-        self.cursor.execute(
-            "CREATE VIRTUAL TABLE image_vectors USING vec0(embedding float[512])"
-        )
-        self.conn.commit()
-
-        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-
-    def _serialize_f32(self, vector: list[float]) -> bytes:
-        """serializes a list of floats into a compact "raw bytes" format"""
-        return struct.pack("%sf" % len(vector), *vector)
-
-    def _vectorize(self, image: Image.Image) -> bytes:
-        """Extracts a vector embedding from an image."""
-        image = image.resize(self.img_size)
-        inputs = self.processor(images=image, return_tensors="pt")
-        with torch.no_grad():
-            embedding = self.model.get_image_features(**inputs)
-        norm: torch.Tensor = embedding / embedding.norm(
-            p=2, dim=-1, keepdim=True
-        )  # Normalize
-        return self._serialize_f32(norm.squeeze().tolist())
-
-    def in_cache(self, compo_crop: Image.Image) -> bool:
-        """
-        Checks if the image is in the cache.
-
-        Args:
-            compo_crop (Image.Image): The image to check.
-        """
-        assert isinstance(compo_crop, Image.Image), "compo_crop must be a PIL Image"
-        embedding = self._vectorize(compo_crop)
-
-        # Search for similar images in SQLite
-        result = self.conn.execute(
-            """
-            SELECT
-                rowid,
-                distance
-            FROM image_vectors
-            WHERE embedding MATCH ?
-                AND distance < 0.4
-                AND k = 1
-            ORDER BY distance
-            """,
-            (embedding,),
-        ).fetchall()
-
-        return result != []
-
-    def update_cache(self, compo_crop: Image.Image) -> None:
-        """
-        Updates the cache with the image, coordinates, and target element.
-
-        Args:
-            compo_crop (Image.Image): The image to cache.
-        """
-        assert isinstance(compo_crop, Image.Image), "compo_crop must be a PIL Image"
-        embedding = self._vectorize(compo_crop)
-
-        self.cursor.execute(
-            "INSERT INTO image_vectors (rowid, embedding) VALUES (NULL, ?)",
-            (embedding,),
-        )
-        self.conn.commit()

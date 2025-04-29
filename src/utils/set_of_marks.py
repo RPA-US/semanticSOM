@@ -5,6 +5,8 @@ from typing import Optional
 import numpy as np
 import copy
 
+import signal
+
 
 # fmt: off
 # RGB:
@@ -292,11 +294,11 @@ def _move_text_to_free_space(
     if isinstance(compo_mask, MultiPolygon):
         compo_mask = max(compo_mask.geoms, key=lambda a: a.area)
 
-    # Find the place in the mask with the most space, then put the text there
-    # signal.signal(signal.SIGALRM, timeout_hander)
-    # signal.alarm(2)
+    # The following code is only available for Linux systems
+    signal.signal(signal.SIGALRM, timeout_hander)  # type: ignore[attr-defined]
+    signal.alarm(2)  # type: ignore[attr-defined]
     text_location = polylabel.polylabel(compo_mask)
-    # signal.alarm(0)
+    signal.alarm(0)  # type: ignore[attr-defined]
     text_rectangle = [
         (
             text_location.x - txt_w * surround_factor,

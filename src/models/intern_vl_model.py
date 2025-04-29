@@ -1,16 +1,22 @@
 import math
 import torch
 import torchvision.transforms as T
+from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
+from transformers import AutoModel, AutoTokenizer
 
 
 def split_model(model_name):
     device_map = {}
     world_size = torch.cuda.device_count()
     num_layers = {
+        "InternVL2_5-1B": 24,
+        "InternVL2_5-2B": 24,
+        "InternVL2_5-4B": 36,
+        "InternVL2_5-8B": 32,
+        "InternVL2_5-26B": 48,
         "InternVL2_5-38B": 64,
-        "OpenGVLab/InternVL2_5-78B": 80,
-        "nvidia/NVLM-D-72B": 80,
+        "InternVL2_5-78B": 80,
     }[model_name]
     # Since the first GPU will be used for ViT, treat it as half a GPU.
     num_layers_per_gpu = math.ceil(num_layers / (world_size - 0.5))
@@ -113,8 +119,8 @@ def dynamic_preprocess(
     return processed_images
 
 
-def load_image(image, input_size=448, max_num=12):
-    image = image.convert("RGB")
+def load_image(image_file, input_size=448, max_num=12):
+    image = Image.open(image_file).convert("RGB")
     transform = build_transform(input_size=input_size)
     images = dynamic_preprocess(
         image, image_size=input_size, use_thumbnail=True, max_num=max_num
@@ -122,3 +128,39 @@ def load_image(image, input_size=448, max_num=12):
     pixel_values = [transform(image) for image in images]
     pixel_values = torch.stack(pixel_values)
     return pixel_values
+
+
+path = "OpenGVLab/InternVL2_5-38B"
+model = (
+    AutoModel.from_pretrained(
+        path,
+        torch_dtype=torch.bfloat16,
+        low_cpu_mem_usage=True,
+        use_flash_attn=True,
+        trust_remote_code=True,
+    )
+    .eval()
+    .cuda()
+)
+tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True, use_fast=False)
+
+# set the max number of tiles in `max_num`
+pixel_values = (
+    load_image("input/images/Captura de pantalla (37)_1.png", max_num=12)
+    .to(torch.bfloat16)
+    .cuda()
+)
+generation_config = dict(
+    max_new_tokens=1024, do_sample=True, temperature=0.01, top_p=0.9
+)
+
+question = "Hello, can you describe the given image?"
+response, history = model.chat(
+    tokenizer,
+    pixel_values,
+    question,
+    generation_config,
+    history=None,
+    return_history=True,
+)
+print(f"User: {question}\nAssistant: {response}")
