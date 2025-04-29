@@ -24,54 +24,66 @@ class MockCFG(CFG):
 
     sqlite_db_location: str = ":memory:"
 
-    highlight_config: dict[str, list[str] | str] = {
+    highlight_config: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["highlight"],  # possible values: "som", "highlight"
         "crop": "none",  # possible values: "parent", "target", "none"
     }
-    highlight_config_parent: dict[str, list[str] | str] = {
+    highlight_config_parent: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["highlight"],  # possible values: "som", "highlight"
         "crop": "parent",  # possible values: "parent", "target", "none"
     }
-    highlight_config_target: dict[str, list[str] | str] = {
+    highlight_config_target: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["highlight"],  # possible values: "som", "highlight"
         "crop": "target",  # possible values: "parent", "target", "none"
     }
 
-    som_config: dict[str, list[str] | str] = {
+    som_config: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["som"],  # possible values: "som", "highlight"
         "crop": "none",  # possible values: "parent", "target", "none"
     }
-    som_config_parent: dict[str, list[str] | str] = {
+    som_config_parent: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["som"],  # possible values: "som", "highlight"
         "crop": "parent",  # possible values: "parent", "target", "none"
     }
-    som_config_target: dict[str, list[str] | str] = {
+    som_config_target: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["som"],  # possible values: "som", "highlight"
         "crop": "target",  # possible values: "parent", "target", "none"
     }
 
-    both_config: dict[str, list[str] | str] = {
+    both_config: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["som", "highlight"],  # possible values: "som", "highlight"
         "crop": "none",  # possible values: "parent", "target", "none"
     }
-    both_config_parent: dict[str, list[str] | str] = {
+    both_config_parent: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["som", "highlight"],  # possible values: "som", "highlight"
         "crop": "parent",  # possible values: "parent", "target", "none"
     }
-    both_config_target: dict[str, list[str] | str] = {
+    both_config_target: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": ["som", "highlight"],  # possible values: "som", "highlight"
         "crop": "target",  # possible values: "parent", "target", "none"
     }
 
-    coords_config: dict[str, list[str] | str] = {
+    coords_config: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": [],  # possible values: "som", "highlight"
         "crop": "none",  # possible values: "parent", "target", "none"
     }
-    coords_config_parent: dict[str, list[str] | str] = {
+    coords_config_parent: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": [],  # possible values: "som", "highlight"
         "crop": "parent",  # possible values: "parent", "target", "none"
     }
-    coords_config_target: dict[str, list[str] | str] = {
+    coords_config_target: dict[str, list[str] | str | bool] = {
+        "cot": True,
         "technique": [],  # possible values: "som", "highlight"
         "crop": "target",  # possible values: "parent", "target", "none"
     }
@@ -94,7 +106,7 @@ class TestPromptProcessing(unittest.TestCase):
                     "id": 1,
                     "points": [(10, 10), (20, 10), (20, 20), (10, 20)],
                     "xpath": [0, 1],
-                    "class": "Button",
+                    "class": "BtnSq",
                     "type": "leaf",
                     "centroid": (15, 15),
                 },
@@ -158,7 +170,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "")
+        self.assertEqual(prompt, ". The object to identify is known to be a Button")
 
     @patch("src.cfg.CFG.prompt_config", new=MockCFG.som_config)
     def test_process_image_for_prompt_som_nocrop(self):
@@ -194,7 +206,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "")
+        self.assertEqual(prompt, ". The object to identify is known to be a Button")
 
     @patch("src.cfg.CFG.prompt_config", new=MockCFG.both_config)
     def test_process_image_for_prompt_both_nocrop(self):
@@ -232,7 +244,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "")
+        self.assertEqual(prompt, ". The object to identify is known to be a Button")
 
     @patch("src.cfg.CFG.prompt_config", new=MockCFG.coords_config)
     def test_process_image_for_prompt_coords_nocrop(self):
@@ -268,7 +280,7 @@ class TestPromptProcessing(unittest.TestCase):
         self.assertIsInstance(sys_prompt, str)
         self.assertEqual(sys_prompt, COT_ACTION_TARGET_ELEM)
         self.assertIsInstance(prompt, str)
-        self.assertEqual(prompt, "")
+        self.assertEqual(prompt, ". The object to identify is known to be a Button")
 
     def test_highlight_compo(self):
         compo = {"points": [(10, 10), (20, 10), (20, 20), (10, 20)]}

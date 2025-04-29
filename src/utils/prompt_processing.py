@@ -8,10 +8,27 @@ from shapely.geometry import Point, Polygon
 from src.cfg import CFG
 from src.semantics.prompts import (
     COT_ACTION_TARGET_BASE,
+    NO_COT_ACTION_TARGET_BASE,
     COT_ACTION_TARGET_COORDS,
     COT_ACTION_TARGET_ELEM,
 )
 from src.utils.set_of_marks import add_num_marks
+
+_CLASS_MAPPING = {
+    "BtnSq": "Button",
+    "BtnPill": "Button",
+    "BtnCirc": "Button",
+    "Icon": "Icon",
+    "WebIcon": "Icon",
+    "Switch": "Switch",
+    "CheckboxChecked": "Checkbox",
+    "CheckboxUnchecked": "Checkbox",
+    "RadiobtnSelected": "Radio Button",
+    "RadiobtnUnselected": "Radio Button",
+    "TextInput": "Text Input",
+    "Dropdown": "Dropdown",
+    "Link": "Link",
+}
 
 
 class Coords(NamedTuple):
@@ -122,7 +139,11 @@ def process_image_for_prompt(
     assert isinstance(coords, Coords), "coords must be an instance of Coords"
 
     target_object: dict = identify_target_object(image=image, som=som, coords=coords)
-    sys_prompt: str = COT_ACTION_TARGET_BASE
+    sys_prompt: str = (
+        COT_ACTION_TARGET_BASE
+        if CFG.prompt_config["cot"]
+        else NO_COT_ACTION_TARGET_BASE
+    )
     prompt: str = ""
     img_shape = image.size
 
@@ -156,11 +177,11 @@ def process_image_for_prompt(
             pass
 
     if CFG.prompt_config["crop"] != "target":
-        if "highlight" in CFG.prompt_config["technique"]:
+        if "highlight" in CFG.prompt_config["technique"]:  # type: ignore[operator]
             # Highlight the target object
             image = highlight_compo(image=image, compo=target_object)
             prompt = "Identify the object highlighted in the image."
-        if "som" in CFG.prompt_config["technique"]:
+        if "som" in CFG.prompt_config["technique"]:  # type: ignore[operator]
             # We recompute the ids to make it easir to identify the target object (lower numbers make it easier, same context and info, less cognitive load)
             for idx, compo in enumerate(
                 filter(lambda c: c["class"] != "Text", som["compos"])
@@ -189,6 +210,7 @@ def process_image_for_prompt(
                 f"Identify the element at coordinates ({new_coords.x}, {new_coords.y})"
             )
 
+    prompt = f"{prompt}. The object to identify is known to be a {_CLASS_MAPPING[target_object['class']]}"
     assert isinstance(image, Image.Image), "processed image must be a PIL Image"
     assert isinstance(sys_prompt, str), "sys_prompt must be a string"
     assert isinstance(prompt, str), "prompt must be a string"

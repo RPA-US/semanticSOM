@@ -1,6 +1,7 @@
 import unittest
 from PIL import Image, ImageDraw, ImageChops
-from src.utils.images import im_2_b64, b64_2_img
+from src.utils.images import im_2_b64, b64_2_img, ImageCache
+from PIL import ImageEnhance
 
 
 BLUE, GREEN, RED = ((0, 0, 255), (0, 255, 0), (255, 0, 0))
@@ -68,6 +69,65 @@ class TestImages(unittest.TestCase):
     def test_b64_2_img_invalid_data(self):
         with self.assertRaises(Exception):
             b64_2_img("not_a_valid_base64_string")
+
+
+class TestImageCache(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Runs once before all tests. Initializes the cache and test images."""
+        cls.image_cache = ImageCache(":memory:")  # Use in-memory SQLite
+
+        # Precompute test images
+        cls.img_original = cls.create_image((0, 255, 0))  # Green image
+        cls.img_brightened = ImageEnhance.Brightness(cls.img_original).enhance(
+            1.1
+        )  # Slightly brighter
+        cls.img_rotated = cls.img_original.rotate(5)  # Rotated slightly
+        cls.img_resized = cls.img_original.resize((100, 100))  # Resized
+        cls.img_gray = cls.img_original.convert("L").convert(
+            "RGB"
+        )  # Convert to grayscale
+        cls.img_different = cls.create_image((255, 0, 0))  # Red image
+
+    @staticmethod
+    def create_image(color: tuple, size: tuple = (224, 224)) -> Image.Image:
+        """Creates a solid color image."""
+        return Image.new("RGB", size, color)
+
+    def test_empty_cache(self):
+        """Cache should be empty initially, returning False for any query."""
+        self.assertFalse(self.image_cache.in_cache(self.img_original))
+
+    def test_identical_image(self):
+        """An identical image should be recognized as cached."""
+        self.image_cache.update_cache(self.img_original)
+        self.assertTrue(self.image_cache.in_cache(self.img_original))
+
+    def test_slightly_modified_image(self):
+        """A slightly modified image (brightness) should still be recognized."""
+        self.assertTrue(self.image_cache.in_cache(self.img_brightened))
+
+    def test_rotated_image(self):
+        """A slightly rotated image should not be recognized."""
+        self.assertFalse(self.image_cache.in_cache(self.img_rotated))
+
+    def test_resized_image(self):
+        """A resized image should still be recognized as similar."""
+        self.assertTrue(self.image_cache.in_cache(self.img_resized))
+
+    def test_completely_different_image(self):
+        """A completely different image should NOT be recognized."""
+        self.assertFalse(self.image_cache.in_cache(self.img_different))
+
+    def test_multiple_similar_images(self):
+        """Inserting multiple variations should still allow recognition."""
+        img_variant = ImageEnhance.Brightness(self.img_original).enhance(1.2)
+        self.assertTrue(self.image_cache.in_cache(img_variant))
+
+    @classmethod
+    def tearDownClass(cls):
+        """Runs after all tests. Closes database connection."""
+        cls.image_cache.conn.close()
 
 
 if __name__ == "__main__":

@@ -220,13 +220,16 @@ def _compute_text_location(
         return None, None
 
     _, _, txt_w, txt_h = font.getbbox(str(compo["id"]))
-    text_location, text_rectangle = _move_text_to_free_space(
-        compo_mask,
-        font,
-        txt_w,
-        txt_h,
-        surround_factor,
-    )
+    try:
+        text_location, text_rectangle = _move_text_to_free_space(
+            compo_mask,
+            font,
+            txt_w,
+            txt_h,
+            surround_factor,
+        )
+    except TimeoutError:
+        return None, None
 
     if (
         compo_mask.intersection(
@@ -278,6 +281,10 @@ def _move_text_to_free_space(
     Returns:
         tuple[tuple[float, float], list[tuple[float, float]]]: The new location and rectangle where the text will be drawn.
     """
+
+    def timeout_hander(signum, frame):
+        raise TimeoutError("Timeout reached")
+
     assert any(
         [isinstance(compo_mask, Polygon), isinstance(compo_mask, MultiPolygon)]
     ), "compo_mask must be a shapely Polygon"
@@ -286,7 +293,10 @@ def _move_text_to_free_space(
         compo_mask = max(compo_mask.geoms, key=lambda a: a.area)
 
     # Find the place in the mask with the most space, then put the text there
+    # signal.signal(signal.SIGALRM, timeout_hander)
+    # signal.alarm(2)
     text_location = polylabel.polylabel(compo_mask)
+    # signal.alarm(0)
     text_rectangle = [
         (
             text_location.x - txt_w * surround_factor,

@@ -1,11 +1,15 @@
 import re
+import os
 import json
 import sqlite3
+import traceback
+from tqdm import tqdm
 from typing import Any
 
 import polars as pl
 import sqlite_vec
 from PIL import Image
+from timeit import default_timer as timer
 
 from src.cfg import CFG
 from src.models.models import QwenVLModel
@@ -70,7 +74,7 @@ class Cache:
 
 def identify_target_element(
     screenshot: Image.Image, som: dict, coords: Coords, model: Any
-) -> str:
+) -> tuple[str, float]:
     """
     Identifies the target element in the screenshot using the provided model.
 
@@ -82,6 +86,7 @@ def identify_target_element(
 
     Returns:
         str: The identified target element.
+        float: Time taken to identify the target element
     """
     assert isinstance(screenshot, Image.Image), "screenshot must be a PIL Image"
     assert isinstance(som, dict), "som must be a dictionary"
@@ -90,18 +95,25 @@ def identify_target_element(
         image=screenshot, som=som, coords=coords
     )
 
+    start = timer()
     model_output: str = model(prompt=prompt, sys_prompt=sys_prompt, image=image)
+    end = timer()
+    time_taken = end - start
     assert isinstance(model_output, str), "model_output must be a string"
 
-    if match_group := re.search(
-        pattern=r"<\|target_element\|>(.*)<\|end_target_element\|>", string=model_output
+    if (
+        match_group := re.search(
+            pattern=r"<\|target_element\|>(.*)<\|end_target_element\|>",
+            string=model_output.lower(),  # A common hallucination is to set some letters to uppercase
+        )
     ):
-        return match_group.group(1)
-    raise ValueError("No target element found in the model output.")
+        return match_group.group(1), time_taken
+    print(f"Error: No target element found. Model output: {model_output}")
+    return "<error> Error: No target element found", time_taken
 
 
 def semantize_targets(
-    event_log: pl.DataFrame, cache: Cache, model: Any
+    event_log: pl.DataFrame, cache: Cache, model: Any, starting_point: int
 ) -> pl.DataFrame:
     """
     Semantizes the targets in the event log.
@@ -117,15 +129,22 @@ def semantize_targets(
     assert isinstance(event_log, pl.DataFrame), "event_log must be a Polars DataFrame"
     assert isinstance(cache, Cache), "cache must be an instance of Cache"
     event_target_col: list[str] = []
+    times: list[float] = []
 
     try:
-        for row in event_log.iter_rows(named=True):
+        for i, row in tqdm(
+            enumerate(event_log.iter_rows(named=True)), desc="Semantised targets"
+        ):
+            if i < starting_point:
+                event_target_col.append("")
+                times.append(0.0)
+                continue
             screenshot: Image.Image = Image.open(
                 fp=f"{CFG.image_dir}/{row[CFG.colnames['Screenshot']]}"
             )
             som: dict = json.load(
                 open(
-                    file=f"{CFG.som_dir}/{row[CFG.colnames['Screenshot']].split('.')[0]}_som.json"
+                    file=f"{CFG.som_dir}/{'.'.join(row[CFG.colnames['Screenshot']].split('.')[:-1])}_som.json"
                 )
             )
 
@@ -146,30 +165,66 @@ def semantize_targets(
                     event_target_col.append(cache_hit[coords])  # type: ignore
                     continue
 
-            event_target_col.append(
-                identify_target_element(
-                    screenshot=screenshot, som=som, coords=coords, model=model
-                )
+            target_element, time = identify_target_element(
+                screenshot=screenshot, som=som, coords=coords, model=model
             )
+            print(target_element)
+            event_target_col.append(target_element)
+            times.append(time)
 
             cache.update_cache(
                 img=screenshot, coords=coords, target_element=event_target_col[-1]
             )
-    except Exception as e:  # early stopping if an error occurs
-        print(
-            f"The following error ocurred while extracting object semantics. Stopping early: {e}"
-        )
 
-    event_log = event_log.with_columns(EventTarget=pl.Series(values=event_target_col))
+            # Save checkpoint
+            if i % 10 == 0:
+                cut_event_log = event_log.slice(0, len(event_target_col)).with_columns(
+                    EventTarget=pl.Series(values=event_target_col),
+                    Time=pl.Series(values=times),
+                )
+                cut_event_log.write_csv(
+                    file=f"{CFG.project_root}/output/eval_checkpoint.csv"
+                )
+    except Exception:  # early stopping if an error occurs
+        print(
+            f"The following error ocurred while extracting object semantics. Stopping early: {traceback.format_exc()}"
+        )
+        event_target_col.extend([None] * (len(event_log) - len(event_target_col)))  # type: ignore[list-item]
+        times.extend([None] * (len(event_log) - len(times)))  # type: ignore[list-item]
+    except KeyboardInterrupt:
+        print("Keyboard interrupt. Stopping early.")
+        event_target_col.extend([None] * (len(event_log) - len(event_target_col)))  # type: ignore[list-item]
+        times.extend([None] * (len(event_log) - len(times)))  # type: ignore[list-item]
+
+    event_log = event_log.with_columns(
+        EventTarget=pl.Series(values=event_target_col), Time=pl.Series(values=times)
+    )
     assert isinstance(event_log, pl.DataFrame), "event_log must be a Polars DataFrame"
 
     return event_log
 
 
-if __name__ == "__main__":
+def run_semantization(model, batch_name) -> None:
+    starting_point = 0
+    # if os.path.exists(f"{CFG.project_root}/output/eval_checkpoint.csv"):
+    #     event_log: pl.DataFrame = pl.read_csv(
+    #         source=f"{CFG.project_root}/output/eval_checkpoint.csv"
+    #     )
+    #     starting_point = len(event_log.rows())
+    #     print("Resuming from checkpoint at row ", starting_point)
     event_log: pl.DataFrame = pl.read_csv(
         source=f"{CFG.project_root}/input/eval/eval.csv"
     )
-    model = QwenVLModel(model_name="Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4")
-    event_log = semantize_targets(event_log=event_log, cache=Cache(), model=model)
-    event_log.write_csv(file=f"{CFG.project_root}/output/eval.csv")
+    # model = Qwen2_5VLModel(model_name="Qwen/Qwen2.5-VL-72B-Instruct-AWQ")
+    event_log = semantize_targets(
+        event_log=event_log, cache=Cache(), model=model, starting_point=starting_point
+    )
+    event_log.write_csv(file=f"{CFG.project_root}/output/eval_{batch_name}.csv")
+    os.remove(f"{CFG.project_root}/output/eval_checkpoint.csv")
+
+
+if __name__ == "__main__":
+    model = QwenVLModel(model_name="bytedance-research/UI-TARS-2B-SFT")
+    model.manual_load()
+    run_semantization(model, "test")
+    model.manual_unload()

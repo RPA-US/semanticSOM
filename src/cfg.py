@@ -27,8 +27,9 @@ class CFG:
         "GroundTruth": "GroundTruth",
     }
 
-    prompt_config: dict[str, list[str] | str] = {
-        "technique": [],  # possible values: "som", "highlight"
+    prompt_config: dict[str, list[str] | str | bool] = {
+        "cot": True,
+        "technique": ["som"],  # possible values: "som", "highlight"
         "crop": "parent",  # possible values: "parent", "target", "none"
     }
 
