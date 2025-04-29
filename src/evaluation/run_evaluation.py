@@ -55,6 +55,17 @@ def parse_args():
     parser.add_argument("--mllm", action="store_true", help="Run MLLM evaluation")
     parser.add_argument("--human", action="store_true", help="Include Human evaluation")
     parser.add_argument("--all", action="store_true", help="Run all evaluation metrics")
+    parser.add_argument(
+        "--inferred",
+        type=str,
+        default="EventTarget",
+        help="Column name containing inferred/generated text (default: EventTarget)",
+    )
+    parser.add_argument(
+        "--unique",
+        action="store_true",
+        help="Use unique ScreenID for each row",
+    )
     return parser.parse_args()
 
 
@@ -66,11 +77,15 @@ def run_evaluation(
     use_sbert: bool = False,
     use_mllm: bool = False,
     use_human: bool = False,
+    inferred_column: str = "EventTarget",
+    unique_screenid: bool = False,
 ) -> None:
     # Define bins for quartile calculation
     bins = [0.25, 0.5, 0.75]
-    scores = []
-    quartile_scores = []
+    scores: list[tuple] = []
+    unique_scores = []
+    quartile_scores: list[tuple] = []
+    unique_quartile_scores = []
 
     metric_functions = {}
 
@@ -101,6 +116,10 @@ def run_evaluation(
         print("  --mllm:        MLLM Evaluation")
         print("  --human:       Human Evaluation")
         print("  --all:         Run all evaluation metrics")
+        print(
+            "  --inferred:     Column name for inferred/generated text (default: EventTarget)"
+        )
+        print("  --unique:      Unique ScreenID for each row")
         return
 
     model = None
@@ -110,9 +129,16 @@ def run_evaluation(
 
     with open(csv_path, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
+        screenids = []
         for row in reader:
+            if "ScreenID" in row and row["ScreenID"] not in screenids:
+                screenids.append(row["ScreenID"])
+            elif "ScreenID" in row:
+                scores.append(scores[-1])
+                quartile_scores.append(quartile_scores[-1])
+                continue
             ground_truth: str = row["GroundTruth"].lower()
-            event_target: str = row["EventTarget"].lower()
+            event_target: str = row[inferred_column].lower()
 
             # Compute selected similarity metrics
             metrics = {}
@@ -123,7 +149,7 @@ def run_evaluation(
                 metrics["MLLM"] = llm_eval(model, ground_truth, event_target) * 0.33
 
             print(f"Screenshot: {row['Screenshot']}")
-            print(f"  Ground Truth: {ground_truth} | Event Target: {event_target}")
+            print(f"  Ground Truth: {ground_truth} | {inferred_column}: {event_target}")
 
             if use_human:
                 while True:
@@ -149,12 +175,21 @@ def run_evaluation(
             print("-----------------------------------------------------")
 
             scores.append(tuple(metrics.values()))
+            unique_scores.append(tuple(metrics.values()))
             quartile_scores.append(tuple(quartiles.values()))
+            unique_quartile_scores.append(tuple(quartiles.values()))
 
     if scores:
-        avg_scores = [sum(vals) / len(vals) for vals in zip(*scores)]
-        avg_quartiles = [sum(vals) / len(vals) for vals in zip(*quartile_scores)]
-        std_devs = [np.std(vals) for vals in zip(*scores)]
+        if unique_screenid:
+            avg_scores = [sum(vals) / len(vals) for vals in zip(*unique_scores)]
+            avg_quartiles = [
+                sum(vals) / len(vals) for vals in zip(*unique_quartile_scores)
+            ]
+            std_devs = [np.std(vals) for vals in zip(*unique_scores)]
+        else:
+            avg_scores = [sum(vals) / len(vals) for vals in zip(*scores)]
+            avg_quartiles = [sum(vals) / len(vals) for vals in zip(*quartile_scores)]
+            std_devs = [np.std(vals) for vals in zip(*scores)]
 
         print("Average Scores:")
         metric_names = list(metrics.keys())
@@ -204,6 +239,8 @@ if __name__ == "__main__":
             use_sbert=True,
             use_mllm=True,
             use_human=True,
+            inferred_column=args.inferred,
+            unique_screenid=args.unique,
         )
     else:
         run_evaluation(
@@ -214,4 +251,6 @@ if __name__ == "__main__":
             use_sbert=args.sbert,
             use_mllm=args.mllm,
             use_human=args.human,
+            inferred_column=args.inferred,
+            unique_screenid=args.unique,
         )

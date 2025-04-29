@@ -14,16 +14,16 @@ from collections import Counter
 from PIL import Image, ImageDraw
 from PIL import ImageTk as itk
 from typing import Any
-# from src.utils.images import ImageCache
+from src.utils.images import ImageCache
 
 from src.utils.hierarchy_constructor import convert_to_som
 
-_LIMIT_PER_DENSITY = 15
+_LIMIT_PER_DENSITY = 30
 
 _INTERACTABLE_ELEMENT_CLASSES = [
-    "BtnSq",
-    "BtnPill",
-    "BtnCirc",
+    # "BtnSq",
+    # "BtnPill",
+    # "BtnCirc",
     # "Icon",
     # "WebIcon",
     # "Switch",
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     """
     Main function to preprocess the dataset and prompt the user for labels.
     """
-    # image_cache = ImageCache(":memory:")
+    image_cache = ImageCache(":memory:")
     labeling_interface = LabelingInterface()
 
     timer_start = timer()
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             if (
                 compo_per_density_counter[img_density][_CLASS_MAPPING[compo["class"]]]
                 >= _LIMIT_PER_DENSITY
-            ):
+            ) or img_density != "Low Density":
                 continue
 
             # if image_cache.in_cache(
@@ -320,6 +320,8 @@ if __name__ == "__main__":
                 compo_per_density_counter[img_density][
                     _CLASS_MAPPING[compo["class"]]
                 ] += 1
+
+            print(f"So far: {compo_per_density_counter}")
 
     labeling_interface.dataframe.write_csv("input/eval/eval.csv")
     print("Labels saved successfully.")

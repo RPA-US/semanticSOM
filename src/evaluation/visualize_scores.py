@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="c:/Code/BPMExtension/output/visualizations",
+        default="",
         help="Directory to save visualizations",
     )
     parser.add_argument(
@@ -282,7 +282,7 @@ def plot_by_component_type(data, metrics, output_dir):
         # Count components of each type for sorting
         type_counts = data["Class"].value_counts()
         common_types = type_counts[type_counts >= 3].index.tolist()
-        filtered_data = data[data["Class"].isin(common_types)]
+        filtered_data = data[data["Class"].isin(common_types)].sort_values("Class")
 
         if len(common_types) > 0:
             plt.figure(figsize=(14, 7))
@@ -324,6 +324,16 @@ def plot_by_component_type(data, metrics, output_dir):
                 bbox=dict(facecolor="white", alpha=0.7, boxstyle="round,pad=0.5"),
             )
 
+            # Add also average total average with number included
+            plt.axhline(y=filtered_data[metric].mean(), color="r", linestyle="--")
+            plt.annotate(
+                f"Total Mean: {filtered_data[metric].mean():.3f}",
+                xy=(0, filtered_data[metric].mean()),
+                xytext=(0, 10),
+                textcoords="offset points",
+                ha="center",
+            )
+
             plt.title(f"{metric} by Component Type (Violin Plot)")
             plt.xlabel("Component Type")
             plt.ylim(0, 1)
@@ -338,6 +348,59 @@ def plot_by_component_type(data, metrics, output_dir):
             plt.savefig(output_path)
             print(f"  Saved: {output_path}")
             plt.close()
+
+
+def plot_inference_time(data, output_dir):
+    """Generate a simple box plot showing the inference time statistics"""
+    print("Generating inference time visualization...")
+
+    if "Time" not in data.columns:
+        print("Warning: 'Time' column not found in dataset")
+        return
+
+    plt.figure(figsize=(10, 6))
+
+    # Create box plot
+    boxplot = plt.boxplot(data["Time"], patch_artist=True)
+    for patch in boxplot["boxes"]:
+        patch.set_facecolor("lightblue")
+
+    # Calculate and display statistics
+    time_stats = data["Time"].describe()
+    stats_text = (
+        f"Mean: {time_stats['mean']:.2f}s\n"
+        f"Median: {time_stats['50%']:.2f}s\n"
+        f"Min: {time_stats['min']:.2f}s\n"
+        f"Max: {time_stats['max']:.2f}s\n"
+        f"Count: {int(time_stats['count'])}"
+    )
+
+    plt.text(
+        1.3,
+        time_stats["mean"],
+        stats_text,
+        bbox=dict(facecolor="white", alpha=0.9, boxstyle="round,pad=0.5"),
+    )
+
+    # Add mean as a dashed line
+    plt.axhline(y=time_stats["mean"], color="r", linestyle="--")
+    plt.annotate(
+        f"Mean: {time_stats['mean']:.2f}s",
+        xy=(1, time_stats["mean"]),
+        xytext=(0.7, time_stats["mean"] + 0.1 * time_stats["std"]),
+        color="red",
+    )
+
+    plt.title("Inference Time Distribution")
+    plt.ylabel("Time (seconds)")
+    plt.xticks([1], ["Inference Time"])
+    plt.grid(True, linestyle="--", alpha=0.7, axis="y")
+
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, "inference_time.png")
+    plt.savefig(output_path)
+    print(f"  Saved: {output_path}")
+    plt.close()
 
 
 def visualize_scores(csv_path, output_dir, metrics):
@@ -366,12 +429,15 @@ def visualize_scores(csv_path, output_dir, metrics):
     plot_by_depth(data, available_metrics, output_dir)
     plot_by_density(data, available_metrics, output_dir)
     plot_by_component_type(data, available_metrics, output_dir)
+    plot_inference_time(data, output_dir)
 
     print(f"All visualizations saved to: {output_dir}")
 
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.output_dir == "":
+        args.output_dir = args.csv_path.split(".")[0]
     visualize_scores(
         csv_path=args.csv_path, output_dir=args.output_dir, metrics=args.metrics
     )
